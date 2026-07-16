@@ -1,0 +1,41 @@
+.spacer {
+  flex: 1 1 auto;
+}
+
+.container {
+  padding: 24px;
+  max-width: 900px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.form-card, .lista-card {
+  padding: 16px;
+}
+
+.full-width {
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+.sin-datos {
+  text-align: center;
+  padding: 40px;
+  color: #666;
+}
+
+.respuesta-admin {
+  background-color: #e8f5e9;
+  padding: 12px;
+  border-radius: 4px;
+  margin-top: 12px;
+  border-left: 4px solid #4caf50;
+}
+
+.sin-respuesta {
+  color: #888;
+  font-style: italic;
+  margin-top: 8px;
+}

@@ -1,0 +1,109 @@
+<mat-toolbar color="primary">
+  <button mat-icon-button (click)="volver()">
+    <mat-icon>arrow_back</mat-icon>
+  </button>
+  <span>📝 Mis PQRS</span>
+  <span class="spacer"></span>
+  <button mat-icon-button (click)="cerrarSesion()" title="Cerrar sesión">
+    <mat-icon>logout</mat-icon>
+  </button>
+</mat-toolbar>
+
+<div class="container">
+
+  <!-- Formulario nueva PQRS -->
+  <mat-card class="form-card">
+    <mat-card-header>
+      <mat-card-title>Nueva PQRS</mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      <form [formGroup]="form" (ngSubmit)="crearPQRS()">
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Inmueble</mat-label>
+          <mat-select formControlName="inmueble_id">
+            <mat-option *ngFor="let inmueble of inmuebles" [value]="inmueble.id">
+              Torre {{ inmueble.torre }} - Apto {{ inmueble.numero }}
+            </mat-option>
+          </mat-select>
+          <mat-error>Selecciona un inmueble</mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Tipo</mat-label>
+          <mat-select formControlName="tipo">
+            <mat-option *ngFor="let tipo of tiposPQRS" [value]="tipo">
+              {{ tipo | titlecase }}
+            </mat-option>
+          </mat-select>
+          <mat-error>Selecciona un tipo</mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Descripción</mat-label>
+          <textarea matInput formControlName="descripcion" rows="4"
+            placeholder="Describe detalladamente tu petición, queja, reclamo o sugerencia...">
+          </textarea>
+          <mat-error *ngIf="form.get('descripcion')?.hasError('required')">
+            La descripción es obligatoria
+          </mat-error>
+          <mat-error *ngIf="form.get('descripcion')?.hasError('minlength')">
+            Mínimo 10 caracteres
+          </mat-error>
+        </mat-form-field>
+
+        <button
+          mat-raised-button
+          color="primary"
+          type="submit"
+          [disabled]="form.invalid || cargando">
+          {{ cargando ? 'Radicando...' : 'Radicar PQRS' }}
+        </button>
+
+      </form>
+    </mat-card-content>
+  </mat-card>
+
+  <!-- Lista de PQRS -->
+  <mat-card class="lista-card">
+    <mat-card-header>
+      <mat-card-title>Mis PQRS Radicadas</mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+
+      <div *ngIf="pqrsList.length === 0" class="sin-datos">
+        No tienes PQRS radicadas aún
+      </div>
+
+      <mat-accordion *ngIf="pqrsList.length > 0">
+        <mat-expansion-panel *ngFor="let pqrs of pqrsList">
+          <mat-expansion-panel-header>
+            <mat-panel-title>
+              {{ pqrs.tipo | titlecase }} #{{ pqrs.id }}
+            </mat-panel-title>
+            <mat-panel-description>
+              <mat-chip [color]="getColorEstado(pqrs.estado)" selected>
+                {{ pqrs.estado }}
+              </mat-chip>
+            </mat-panel-description>
+          </mat-expansion-panel-header>
+
+          <p><strong>Descripción:</strong> {{ pqrs.descripcion }}</p>
+          <p><strong>Fecha:</strong> {{ pqrs.fecha_radicacion | date:'dd/MM/yyyy HH:mm' }}</p>
+
+          <div *ngIf="pqrs.respuesta_admin" class="respuesta-admin">
+            <strong>Respuesta de la administración:</strong>
+            <p>{{ pqrs.respuesta_admin }}</p>
+          </div>
+
+          <div *ngIf="!pqrs.respuesta_admin" class="sin-respuesta">
+            <p>⏳ Pendiente de respuesta por la administración</p>
+          </div>
+
+        </mat-expansion-panel>
+      </mat-accordion>
+
+    </mat-card-content>
+  </mat-card>
+
+</div>

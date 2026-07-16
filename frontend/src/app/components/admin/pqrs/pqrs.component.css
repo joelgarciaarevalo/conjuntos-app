@@ -1,0 +1,38 @@
+.spacer {
+  flex: 1 1 auto;
+}
+
+.container {
+  padding: 24px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.sin-datos {
+  text-align: center;
+  padding: 40px;
+  color: #666;
+}
+
+.detalle {
+  padding: 8px 0;
+}
+
+.respuesta-existente {
+  background-color: #e8f5e9;
+  padding: 12px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+  border-left: 4px solid #4caf50;
+}
+
+.form-respuesta {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #eee;
+}
+
+.full-width {
+  width: 100%;
+  margin-bottom: 12px;
+}

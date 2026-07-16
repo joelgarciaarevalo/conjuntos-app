@@ -1,0 +1,54 @@
+<mat-toolbar color="primary">
+  <span>🛠️ Panel de Administración</span>
+  <span class="spacer"></span>
+  <button mat-icon-button (click)="cerrarSesion()" title="Cerrar sesión">
+    <mat-icon>logout</mat-icon>
+  </button>
+</mat-toolbar>
+
+<div class="dashboard-container">
+  <h1>👋 Bienvenido, {{ nombreUsuario }}</h1>
+  <p class="subtitulo">Panel de control del conjunto residencial</p>
+
+  <div class="cards-grid">
+
+    <mat-card class="opcion-card" (click)="irAReservas()">
+      <mat-card-content>
+        <mat-icon class="card-icon"
+          [matBadge]="reservasPendientes"
+          matBadgeColor="warn"
+          [matBadgeHidden]="reservasPendientes === 0">
+          event
+        </mat-icon>
+        <h2>Reservas</h2>
+        <p>Aprueba o rechaza las reservas de zonas comunes</p>
+        <p class="pendientes" *ngIf="reservasPendientes > 0">
+          ⚠️ {{ reservasPendientes }} reserva(s) pendiente(s)
+        </p>
+      </mat-card-content>
+      <mat-card-actions>
+        <button mat-raised-button color="primary">Gestionar Reservas</button>
+      </mat-card-actions>
+    </mat-card>
+
+    <mat-card class="opcion-card" (click)="irAPQRS()">
+      <mat-card-content>
+        <mat-icon class="card-icon"
+          [matBadge]="pqrsPendientes"
+          matBadgeColor="warn"
+          [matBadgeHidden]="pqrsPendientes === 0">
+          feedback
+        </mat-icon>
+        <h2>PQRS</h2>
+        <p>Responde las peticiones, quejas, reclamos y sugerencias</p>
+        <p class="pendientes" *ngIf="pqrsPendientes > 0">
+          ⚠️ {{ pqrsPendientes }} PQRS sin responder
+        </p>
+      </mat-card-content>
+      <mat-card-actions>
+        <button mat-raised-button color="accent">Gestionar PQRS</button>
+      </mat-card-actions>
+    </mat-card>
+
+  </div>
+</div>

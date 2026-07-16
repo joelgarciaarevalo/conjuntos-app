@@ -1,0 +1,32 @@
+.spacer {
+  flex: 1 1 auto;
+}
+
+.container {
+  padding: 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.sin-datos {
+  text-align: center;
+  padding: 40px;
+  color: #666;
+}
+
+.btn-accion {
+  margin-right: 8px;
+}
+
+.estado-final {
+  color: #666;
+  font-style: italic;
+}
+
+td, th {
+  padding: 12px 8px;
+}
