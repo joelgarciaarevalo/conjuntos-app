@@ -8,13 +8,64 @@
 
 <div class="dashboard-container">
   <h1>👋 Bienvenido, {{ nombreUsuario }}</h1>
-  <p class="subtitulo">Panel de control del conjunto residencial</p>
+  <p class="subtitulo">Resumen de la operación de tus conjuntos residenciales</p>
+
+  <section class="resumen-section" aria-labelledby="resumen-titulo">
+    <div class="section-heading">
+      <div>
+        <h2 id="resumen-titulo">Resumen de gestión</h2>
+        <p>Estado actual de la información centralizada en IRIS</p>
+      </div>
+      <button mat-stroked-button type="button" (click)="cargarResumen()" [disabled]="cargando">
+        <mat-icon>refresh</mat-icon>
+        Actualizar
+      </button>
+    </div>
+
+    <div class="estado-carga" *ngIf="cargando" role="status">
+      <mat-spinner diameter="32"></mat-spinner>
+      <span>Cargando información...</span>
+    </div>
+
+    <div class="error-carga" *ngIf="errorCarga" role="alert">
+      <mat-icon>error_outline</mat-icon>
+      <span>No fue posible cargar el resumen. Verifica la conexión con el servidor e inténtalo de nuevo.</span>
+      <button mat-button type="button" (click)="cargarResumen()">Reintentar</button>
+    </div>
+
+    <div class="metricas-grid" *ngIf="!cargando && !errorCarga">
+      <mat-card class="metrica-card">
+        <mat-icon aria-hidden="true">apartment</mat-icon>
+        <div>
+          <span class="metrica-valor">{{ totalConjuntos }}</span>
+          <span class="metrica-label">Conjuntos</span>
+        </div>
+      </mat-card>
+      <mat-card class="metrica-card">
+        <mat-icon aria-hidden="true">home_work</mat-icon>
+        <div>
+          <span class="metrica-valor">{{ totalInmuebles }}</span>
+          <span class="metrica-label">Inmuebles</span>
+        </div>
+      </mat-card>
+      <mat-card class="metrica-card">
+        <mat-icon aria-hidden="true">pool</mat-icon>
+        <div>
+          <span class="metrica-valor">{{ totalZonasComunes }}</span>
+          <span class="metrica-label">Zonas comunes</span>
+        </div>
+      </mat-card>
+    </div>
+  </section>
+
+  <h2 class="operacion-titulo">Atención operativa</h2>
 
   <div class="cards-grid">
 
     <mat-card class="opcion-card" (click)="irAReservas()">
       <mat-card-content>
         <mat-icon class="card-icon"
+          aria-hidden="false"
           [matBadge]="reservasPendientes"
           matBadgeColor="warn"
           [matBadgeHidden]="reservasPendientes === 0">
@@ -34,6 +85,7 @@
     <mat-card class="opcion-card" (click)="irAPQRS()">
       <mat-card-content>
         <mat-icon class="card-icon"
+          aria-hidden="false"
           [matBadge]="pqrsPendientes"
           matBadgeColor="warn"
           [matBadgeHidden]="pqrsPendientes === 0">
@@ -48,6 +100,54 @@
       <mat-card-actions>
         <button mat-raised-button color="accent">Gestionar PQRS</button>
       </mat-card-actions>
+    </mat-card>
+
+
+    <mat-card class="opcion-card" routerLink="/admin/qr">
+      <mat-card-content>
+        <mat-icon class="card-icon" aria-hidden="true">qr_code_2</mat-icon>
+        <h2>Códigos QR</h2>
+        <p>Genera QR únicos para residentes, visitas y reservas, y valida el acceso en portería</p>
+      </mat-card-content>
+      <mat-card-actions>
+        <button mat-raised-button color="primary">Gestionar QR</button>
+      </mat-card-actions>
+    </mat-card>
+
+    <mat-card class="opcion-card" routerLink="/admin/gestion">
+      <mat-card-content>
+        <mat-icon class="card-icon">settings</mat-icon>
+        <h2>Gestión del conjunto</h2>
+        <p>Administra inmuebles, zonas, horarios, comunicados, cuotas, paquetes, parqueaderos y roles</p>
+      </mat-card-content>
+      <mat-card-actions><button mat-raised-button color="primary">Abrir gestión</button></mat-card-actions>
+    </mat-card>
+
+    <mat-card class="opcion-card" routerLink="/admin/plus">
+      <mat-card-content>
+        <mat-icon class="card-icon">assessment</mat-icon>
+        <h2>Operación ampliada</h2>
+        <p>Conciliación de pagos, incidentes, membresías, reportes y respaldos</p>
+      </mat-card-content>
+      <mat-card-actions><button mat-raised-button color="accent">Abrir operación</button></mat-card-actions>
+    </mat-card>
+
+    <mat-card class="opcion-card" routerLink="/portero">
+      <mat-card-content>
+        <mat-icon class="card-icon">qr_code_scanner</mat-icon>
+        <h2>Portería</h2>
+        <p>Validación rápida de QR con cámara y registro de ingreso</p>
+      </mat-card-content>
+      <mat-card-actions><button mat-raised-button color="accent">Abrir escáner</button></mat-card-actions>
+    </mat-card>
+
+    <mat-card class="opcion-card" routerLink="/admin/modulos">
+      <mat-card-content>
+        <mat-icon class="card-icon">insights</mat-icon>
+        <h2>Módulos 3.0</h2>
+        <p>Pagos en línea con pasarela, avisos WhatsApp/SMS, mantenimiento, visitantes, seguridad, contabilidad, asambleas e indicadores</p>
+      </mat-card-content>
+      <mat-card-actions><button mat-raised-button color="primary">Abrir módulos</button></mat-card-actions>
     </mat-card>
 
   </div>

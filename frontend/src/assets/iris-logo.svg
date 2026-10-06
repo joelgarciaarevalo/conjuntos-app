@@ -1,0 +1,14 @@
+<svg width="220" height="220" viewBox="0 0 220 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="irisGrad" x1="30" y1="24" x2="188" y2="196" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1E3A8A"/>
+      <stop offset="0.55" stop-color="#2563EB"/>
+      <stop offset="1" stop-color="#14B8A6"/>
+    </linearGradient>
+  </defs>
+  <rect x="10" y="10" width="200" height="200" rx="42" fill="#EAF2FF"/>
+  <path d="M58 150C58 104.183 95.183 67 141 67C156.5 67 170.5 71.5 182 80L165 95C157.5 89.5 149 87 141 87C112.5 87 90 109.5 90 138C90 166.5 112.5 189 141 189C149 189 157.5 186.5 165 181L182 196C170.5 204.5 156.5 209 141 209C95.183 209 58 171.817 58 150Z" fill="url(#irisGrad)"/>
+  <path d="M115 50L152 104H131L117 83L103 104H82L119 50H115Z" fill="#0F172A" fill-opacity="0.12"/>
+  <circle cx="82" cy="88" r="15" fill="#2563EB" fill-opacity="0.15"/>
+  <path d="M63 137C72.5 116.5 91.5 102 115 102C138.5 102 157.5 116.5 167 137L155.5 145C148.5 129.5 133 119 115 119C97 119 81.5 129.5 74.5 145L63 137Z" fill="#0F172A" fill-opacity="0.08"/>
+</svg>

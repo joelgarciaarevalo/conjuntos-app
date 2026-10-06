@@ -1,8 +1,7 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field, ConfigDict
 from typing import Optional
 from datetime import datetime
 
-# Usuarios
 class UsuarioCreate(BaseModel):
     nombre_completo: str
     cedula: str
@@ -17,11 +16,9 @@ class UsuarioResponse(BaseModel):
     email: EmailStr
     telefono: Optional[str] = None
     es_super_admin: bool
+    rol: str = "residente"
+    model_config = ConfigDict(from_attributes=True)
 
-    class Config: from_attributes = True
-
-
-# Auth
 class Token(BaseModel):
     access_token: str
     token_type: str
@@ -30,8 +27,6 @@ class LoginData(BaseModel):
     email: EmailStr
     password: str
 
-
-#Conjuntos
 class ConjuntoCreate(BaseModel):
     nombre: str
     nit: str
@@ -42,17 +37,14 @@ class ConjuntoResponse(BaseModel):
     nombre: str
     nit: str
     direccion: str
+    model_config = ConfigDict(from_attributes=True)
 
-    class Config: from_attributes = True
-
-
-# Inmuebles
 class InmuebleCreate(BaseModel):
     torre: Optional[str] = None
     numero: str
     propietario_id: int
     inquilino_id: Optional[int] = None
-    estado: Optional[str] = "Ocupado"
+    estado: Optional[str] = "ocupado"
 
 class InmuebleResponse(BaseModel):
     id: int
@@ -62,25 +54,29 @@ class InmuebleResponse(BaseModel):
     propietario_id: int
     inquilino_id: Optional[int]
     estado: str
+    model_config = ConfigDict(from_attributes=True)
 
-    class Config: from_attributes = True
-
-
-# Zonas comunes
 class ZonaComunCreate(BaseModel):
     nombre: str
     requiere_aprobacion: Optional[bool] = True
+    hora_apertura: str = "06:00"
+    hora_cierre: str = "22:00"
+    duracion_max_minutos: int = Field(default=240, ge=1, le=1440)
+    max_dias_anticipacion: int = Field(default=30, ge=1, le=365)
+    max_reservas_dia_inmueble: int = Field(default=2, ge=1, le=20)
 
 class ZonaComunResponse(BaseModel):
     id: int
     conjunto_id: int
     nombre: str
     requiere_aprobacion: bool
+    hora_apertura: str = "06:00"
+    hora_cierre: str = "22:00"
+    duracion_max_minutos: int = 240
+    max_dias_anticipacion: int = 30
+    max_reservas_dia_inmueble: int = 2
+    model_config = ConfigDict(from_attributes=True)
 
-    class Config: from_attributes = True
-
-
-# Reservas
 class ReservaCreate(BaseModel):
     zona_id: int
     inmueble_id: int
@@ -95,14 +91,11 @@ class ReservaResponse(BaseModel):
     fecha_inicio: datetime
     fecha_fin: datetime
     estado: str
-
-    class Config: from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class ReservaEstadoUpdate(BaseModel):
-    estado: str # Aprobada o Rechazada
+    estado: str
 
-
-# PQRS
 class PQRSCreate(BaseModel):
     inmueble_id: int
     tipo: str
@@ -111,14 +104,14 @@ class PQRSCreate(BaseModel):
 class PQRSResponse(BaseModel):
     id: int
     inmueble_id: int
+    solicitante_id: int
     tipo: str
     descripcion: str
     estado: str
     fecha_radicacion: datetime
     respuesta_admin: Optional[str] = None
-
-    class Config: from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class PQRSRespuestaUpdate(BaseModel):
     respuesta_admin: str
-    estado: str 
+    estado: str

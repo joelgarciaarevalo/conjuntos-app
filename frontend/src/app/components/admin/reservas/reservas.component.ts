@@ -30,6 +30,9 @@ import { AuthService } from '../../../services/auth.service';
 })
 export class ReservasComponent implements OnInit {
   reservas: any[] = [];
+  zonas: any[] = [];
+  inmuebles: any[] = [];
+  filtro = 'todas';
   columnas = ['id', 'inmueble', 'zona', 'fecha_inicio', 'fecha_fin', 'estado', 'acciones'];
 
   constructor(
@@ -41,6 +44,44 @@ export class ReservasComponent implements OnInit {
 
   ngOnInit(): void {
     this.cargarReservas();
+    this.cargarNombres();
+  }
+
+  // Nombres legibles de zonas e inmuebles (si falla, se muestran los números)
+  cargarNombres(): void {
+    this.apiService.getConjuntos().subscribe({
+      next: (conjuntos) => {
+        if (conjuntos.length > 0) {
+          const id = conjuntos[0].id;
+          this.apiService.getZonas(id).subscribe({ next: (d) => this.zonas = d, error: () => {} });
+          this.apiService.getInmuebles(id).subscribe({ next: (d) => this.inmuebles = d, error: () => {} });
+        }
+      },
+      error: () => {}
+    });
+  }
+
+  get reservasFiltradas(): any[] {
+    return this.filtro === 'todas'
+      ? this.reservas
+      : this.reservas.filter(r => r.estado === this.filtro);
+  }
+
+  conteo(estado: string): number {
+    return this.reservas.filter(r => r.estado === estado).length;
+  }
+
+  setFiltro(estado: string): void {
+    this.filtro = estado;
+  }
+
+  nombreZona(id: number): string {
+    return this.zonas.find(z => z.id === id)?.nombre || `Zona #${id}`;
+  }
+
+  nombreInmueble(id: number): string {
+    const i = this.inmuebles.find(x => x.id === id);
+    return i ? `${i.torre ? 'Torre ' + i.torre + ' - ' : ''}Apto ${i.numero}` : `Inmueble #${id}`;
   }
 
   cargarReservas(): void {

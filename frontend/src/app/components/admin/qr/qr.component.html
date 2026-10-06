@@ -1,0 +1,279 @@
+<mat-toolbar color="primary">
+  <button mat-icon-button (click)="volver()" title="Volver">
+    <mat-icon>arrow_back</mat-icon>
+  </button>
+  <img src="assets/iris-mark.svg" alt="" class="toolbar-mark" />
+  <span>Códigos QR</span>
+  <span class="spacer"></span>
+  <button mat-icon-button (click)="cerrarSesion()" title="Cerrar sesión">
+    <mat-icon>logout</mat-icon>
+  </button>
+</mat-toolbar>
+
+<div class="page-wrap">
+
+  <header class="page-head">
+    <h1>Códigos QR de acceso</h1>
+    <p>Genera QR únicos para residentes, visitas y reservas de zonas comunes. Cada código se puede revocar o regenerar en cualquier momento.</p>
+  </header>
+
+  <div class="stats" role="group" aria-label="Filtrar códigos por estado">
+    <button type="button" class="stat" [class.is-active]="filtro === 'todos'" (click)="setFiltro('todos')">
+      <span class="stat__n">{{ conteo('todos') }}</span>
+      <span class="stat__l">Todos</span>
+    </button>
+    <button type="button" class="stat stat--mint" [class.is-active]="filtro === 'activo'" (click)="setFiltro('activo')">
+      <span class="stat__n">{{ conteo('activo') }}</span>
+      <span class="stat__l">Activos</span>
+    </button>
+    <button type="button" class="stat stat--amber" [class.is-active]="filtro === 'vencido'" (click)="setFiltro('vencido')">
+      <span class="stat__n">{{ conteo('vencido') }}</span>
+      <span class="stat__l">Vencidos o agotados</span>
+    </button>
+    <button type="button" class="stat stat--coral" [class.is-active]="filtro === 'revocado'" (click)="setFiltro('revocado')">
+      <span class="stat__n">{{ conteo('revocado') }}</span>
+      <span class="stat__l">Revocados</span>
+    </button>
+  </div>
+
+  <!-- ============ Generar ============ -->
+  <section class="panel">
+    <div class="panel__head">
+      <div>
+        <h2 class="panel__title">Generar código QR</h2>
+        <p class="panel__sub">{{ ayudaTipo }}</p>
+      </div>
+      <button mat-stroked-button type="button" class="btn-lote" (click)="generarParaTodos()" [disabled]="generandoLote">
+        <mat-icon>auto_awesome</mat-icon>
+        {{ generandoLote ? 'Generando...' : 'Generar para todos los residentes' }}
+      </button>
+    </div>
+
+    <div class="tipo-group" role="group" aria-label="Tipo de código">
+      <button type="button" class="tipo-opt" *ngFor="let t of tipos"
+              [class.is-active]="tipoActual === t.valor"
+              [attr.aria-pressed]="tipoActual === t.valor"
+              (click)="seleccionarTipo(t.valor)">
+        <mat-icon>{{ t.icono }}</mat-icon>
+        <span>{{ t.etiqueta }}</span>
+      </button>
+    </div>
+
+    <form [formGroup]="form" (ngSubmit)="crear()" class="form-grid">
+
+      <mat-form-field appearance="outline" *ngIf="tipoActual !== 'reserva'" class="col-full">
+        <mat-label>{{ tipoActual === 'visita' ? 'Residente que autoriza' : 'Residente' }}</mat-label>
+        <mat-select formControlName="residente" [compareWith]="mismoResidente">
+          <mat-option *ngFor="let r of catalogo.residentes" [value]="r"
+                      [disabled]="tipoActual === 'residente' && r.tiene_qr">
+            {{ r.nombre }} · {{ r.inmueble_etiqueta }} ({{ r.rol }}){{ tipoActual === 'residente' && r.tiene_qr ? ' · ya tiene QR' : '' }}
+          </mat-option>
+        </mat-select>
+        <mat-hint *ngIf="catalogo.residentes.length === 0">No hay inmuebles con residentes registrados.</mat-hint>
+        <mat-error>Selecciona un residente</mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" *ngIf="tipoActual === 'reserva'" class="col-full">
+        <mat-label>Reserva aprobada</mat-label>
+        <mat-select formControlName="reserva_id">
+          <mat-option *ngFor="let r of catalogo.reservas" [value]="r.id" [disabled]="r.tiene_qr">
+            {{ r.etiqueta }}{{ r.tiene_qr ? ' · ya tiene QR' : '' }}
+          </mat-option>
+        </mat-select>
+        <mat-hint *ngIf="catalogo.reservas.length === 0">No hay reservas aprobadas vigentes. Apruébalas en «Reservas».</mat-hint>
+        <mat-error>Selecciona una reserva</mat-error>
+      </mat-form-field>
+
+      <ng-container *ngIf="tipoActual === 'visita'">
+        <mat-form-field appearance="outline">
+          <mat-label>Nombre del visitante</mat-label>
+          <input matInput formControlName="visitante_nombre" maxlength="100" autocomplete="off">
+          <mat-error>El nombre es obligatorio</mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Documento (opcional)</mat-label>
+          <input matInput formControlName="visitante_documento" maxlength="30" autocomplete="off">
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Vigencia</mat-label>
+          <mat-select formControlName="horas_validez">
+            <mat-option *ngFor="let h of opcionesHoras" [value]="h.valor">{{ h.etiqueta }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Número de ingresos permitidos</mat-label>
+          <input matInput type="number" min="1" max="100" formControlName="usos_maximos">
+          <mat-error>Entre 1 y 100</mat-error>
+        </mat-form-field>
+      </ng-container>
+
+      <div class="form-actions">
+        <button mat-raised-button color="primary" type="submit" class="btn-submit" [disabled]="form.invalid || generando">
+          <mat-icon>qr_code_2</mat-icon>
+          {{ generando ? 'Generando...' : 'Generar QR' }}
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <!-- ============ Vista previa ============ -->
+  <section class="panel preview" id="qr-preview" *ngIf="seleccionado">
+    <div class="preview__qr">
+      <img *ngIf="qrImagen" [src]="qrImagen" alt="Código QR de {{ titular(seleccionado) }}" width="260" height="260" />
+      <div *ngIf="!qrImagen" class="preview__loading">Generando...</div>
+    </div>
+    <div class="preview__info">
+      <span class="pill pill--{{ seleccionado.estado }}">{{ textoEstado(seleccionado.estado) }}</span>
+      <h2 class="panel__title">{{ titular(seleccionado) }}</h2>
+      <p class="panel__sub">{{ etiquetaTipo(seleccionado.tipo) }}<ng-container *ngIf="detalle(seleccionado)"> · {{ detalle(seleccionado) }}</ng-container></p>
+      <ul class="preview__datos">
+        <li><mat-icon>schedule</mat-icon> {{ vigenciaTexto(seleccionado) }}</li>
+        <li><mat-icon>login</mat-icon> Ingresos: {{ usosTexto(seleccionado) }}</li>
+        <li *ngIf="seleccionado.visitante_documento"><mat-icon>badge</mat-icon> Documento: {{ seleccionado.visitante_documento }}</li>
+      </ul>
+      <code class="preview__codigo">{{ contenido(seleccionado) }}</code>
+      <div class="preview__acciones">
+        <button mat-raised-button color="primary" type="button" (click)="descargar()" [disabled]="!qrImagen">
+          <mat-icon>download</mat-icon> Descargar PNG
+        </button>
+        <button mat-stroked-button type="button" class="btn-sec" (click)="imprimir()" [disabled]="!qrImagen">
+          <mat-icon>print</mat-icon> Imprimir
+        </button>
+        <button mat-stroked-button type="button" class="btn-sec" (click)="copiarCodigo()">
+          <mat-icon>content_copy</mat-icon> Copiar código
+        </button>
+        <button mat-button type="button" class="btn-cerrar" (click)="cerrarVista()">Cerrar</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ Listado ============ -->
+  <section class="panel">
+    <div class="panel__head">
+      <h2 class="panel__title">{{ filtro === 'todos' ? 'Todos los códigos' : 'Códigos filtrados' }}</h2>
+    </div>
+
+    <div *ngIf="codigosFiltrados.length === 0" class="empty">
+      <mat-icon>qr_code_2</mat-icon>
+      <strong>{{ codigos.length === 0 ? 'Aún no hay códigos QR' : 'Sin resultados en este filtro' }}</strong>
+      <span>{{ codigos.length === 0 ? 'Genera el primero con el formulario de arriba.' : 'Prueba con otro estado.' }}</span>
+    </div>
+
+    <div class="table-scroll" *ngIf="codigosFiltrados.length > 0">
+      <table mat-table [dataSource]="codigosFiltrados" class="full-width">
+
+        <ng-container matColumnDef="tipo">
+          <th mat-header-cell *matHeaderCellDef>Tipo</th>
+          <td mat-cell *matCellDef="let q">
+            <span class="tipo-cell"><mat-icon>{{ iconoTipo(q.tipo) }}</mat-icon>{{ etiquetaTipo(q.tipo) }}</span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="titular">
+          <th mat-header-cell *matHeaderCellDef>Titular</th>
+          <td mat-cell *matCellDef="let q">
+            <span class="cell-main">{{ titular(q) }}</span>
+            <span class="cell-sub">{{ detalle(q) }}</span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="vigencia">
+          <th mat-header-cell *matHeaderCellDef>Vigencia</th>
+          <td mat-cell *matCellDef="let q">
+            <span class="cell-main">{{ q.valido_hasta ? (q.valido_hasta | date:'dd/MM/yyyy') : 'Sin vencimiento' }}</span>
+            <span class="cell-sub" *ngIf="q.valido_hasta">{{ q.valido_hasta | date:'HH:mm' }}</span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="usos">
+          <th mat-header-cell *matHeaderCellDef>Ingresos</th>
+          <td mat-cell *matCellDef="let q">{{ usosTexto(q) }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="estado">
+          <th mat-header-cell *matHeaderCellDef>Estado</th>
+          <td mat-cell *matCellDef="let q">
+            <span class="pill pill--{{ q.estado }}">{{ textoEstado(q.estado) }}</span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="acciones">
+          <th mat-header-cell *matHeaderCellDef>Acciones</th>
+          <td mat-cell *matCellDef="let q">
+            <div class="acciones">
+              <button mat-icon-button type="button" title="Ver QR" aria-label="Ver QR" (click)="verQR(q)">
+                <mat-icon>qr_code_2</mat-icon>
+              </button>
+              <button mat-icon-button type="button" title="Regenerar" aria-label="Regenerar" (click)="regenerar(q)">
+                <mat-icon>autorenew</mat-icon>
+              </button>
+              <button mat-icon-button type="button" class="btn-revocar" title="Revocar" aria-label="Revocar"
+                      *ngIf="puedeOperar(q)" (click)="revocar(q)">
+                <mat-icon>block</mat-icon>
+              </button>
+            </div>
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="columnas"></tr>
+        <tr mat-row *matRowDef="let row; columns: columnas;"></tr>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============ Portería ============ -->
+  <section class="panel">
+    <div class="panel__head">
+      <div>
+        <h2 class="panel__title">Validar en portería</h2>
+        <p class="panel__sub">Pega el código, escríbelo o usa un lector de QR (envía Enter al terminar).</p>
+      </div>
+    </div>
+
+    <div class="validar-row">
+      <mat-form-field appearance="outline" class="validar-campo">
+        <mat-label>Código leído</mat-label>
+        <input matInput [formControl]="validarCtrl" placeholder="IRIS-QR:..." autocomplete="off"
+               (keydown.enter)="validar(); $event.preventDefault()">
+      </mat-form-field>
+      <button mat-raised-button color="primary" type="button" class="btn-submit" (click)="validar()"
+              [disabled]="validando || !validarCtrl.value.trim()">
+        <mat-icon>verified</mat-icon>
+        {{ validando ? 'Validando...' : 'Validar' }}
+      </button>
+    </div>
+    <mat-checkbox [formControl]="registrarCtrl" class="chk-registrar">Registrar el ingreso (descuenta un uso)</mat-checkbox>
+
+    <div class="resultado" *ngIf="resultado" [class.resultado--ok]="resultado.valido" [class.resultado--no]="!resultado.valido" role="status">
+      <mat-icon>{{ resultado.valido ? 'check_circle' : 'cancel' }}</mat-icon>
+      <div class="resultado__texto">
+        <strong>{{ resultado.valido ? 'Acceso permitido' : 'Acceso denegado' }}</strong>
+        <span>{{ resultado.motivo }}</span>
+        <ng-container *ngIf="resultado.qr">
+          <span class="resultado__det">{{ etiquetaTipo(resultado.qr.tipo) }} · {{ titular(resultado.qr) }}<ng-container *ngIf="detalle(resultado.qr)"> · {{ detalle(resultado.qr) }}</ng-container></span>
+          <span class="resultado__det">Ingresos: {{ usosTexto(resultado.qr) }} · {{ vigenciaTexto(resultado.qr) }}</span>
+        </ng-container>
+      </div>
+      <button mat-icon-button type="button" (click)="limpiarResultado()" title="Cerrar" aria-label="Cerrar resultado">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+
+    <h3 class="subtitulo-lista" *ngIf="accesos.length > 0">Últimos movimientos</h3>
+    <ul class="accesos" *ngIf="accesos.length > 0">
+      <li *ngFor="let a of accesos">
+        <mat-icon [class.ico-ok]="a.resultado === 'permitido'" [class.ico-no]="a.resultado !== 'permitido'">
+          {{ a.resultado === 'permitido' ? 'check_circle' : 'cancel' }}
+        </mat-icon>
+        <div>
+          <span class="cell-main">{{ a.descripcion }}</span>
+          <span class="cell-sub">{{ a.motivo }} · {{ a.fecha | date:'dd/MM/yyyy HH:mm' }}</span>
+        </div>
+      </li>
+    </ul>
+  </section>
+
+</div>

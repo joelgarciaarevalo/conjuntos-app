@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app import models, schemas
 from app.dependencies import get_usuario_actual 
+from app.permissions import allowed_set_ids, require_access_set
 
 
 router = APIRouter(prefix="/conjuntos", tags=["conjuntos"])
@@ -31,7 +32,10 @@ def listar_conjuntos(
     db: Session = Depends(get_db),
     usuario_actual: models.Usuario = Depends(get_usuario_actual)
 ):
-    return db.query(models.Conjunto).all()
+    ids = allowed_set_ids(db, usuario_actual)
+    if not ids:
+        return []
+    return db.query(models.Conjunto).filter(models.Conjunto.id.in_(ids)).order_by(models.Conjunto.nombre).all()
 
 
 @router.get("/{conjunto_id}", response_model=schemas.ConjuntoResponse)
@@ -43,4 +47,5 @@ def obtener_conjunto(
     conjunto = db.query(models.Conjunto).filter(models.Conjunto.id == conjunto_id).first()
     if not conjunto:
         raise HTTPException(status_code=404, detail="Conjunto no encontrado")
+    require_access_set(db, usuario_actual, conjunto_id)
     return conjunto

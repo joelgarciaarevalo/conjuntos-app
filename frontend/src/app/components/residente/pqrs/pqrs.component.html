@@ -1,25 +1,48 @@
 <mat-toolbar color="primary">
-  <button mat-icon-button (click)="volver()">
+  <button mat-icon-button (click)="volver()" title="Volver">
     <mat-icon>arrow_back</mat-icon>
   </button>
-  <span>📝 Mis PQRS</span>
+  <img src="assets/iris-mark.svg" alt="" class="toolbar-mark" />
+  <span>Mis PQRS</span>
   <span class="spacer"></span>
   <button mat-icon-button (click)="cerrarSesion()" title="Cerrar sesión">
     <mat-icon>logout</mat-icon>
   </button>
 </mat-toolbar>
 
-<div class="container">
+<div class="page-wrap">
 
-  <!-- Formulario nueva PQRS -->
-  <mat-card class="form-card">
-    <mat-card-header>
-      <mat-card-title>Nueva PQRS</mat-card-title>
-    </mat-card-header>
-    <mat-card-content>
-      <form [formGroup]="form" (ngSubmit)="crearPQRS()">
+  <header class="page-head">
+    <h1>Cuéntanos qué necesitas</h1>
+    <p>Radica una petición, queja, reclamo o sugerencia y sigue su avance hasta que la administración la resuelva.</p>
+  </header>
 
-        <mat-form-field appearance="outline" class="full-width">
+  <section class="panel">
+    <h2 class="panel__title">Nueva PQRS</h2>
+    <p class="panel__sub">Primero elige el tipo de solicitud.</p>
+
+    <form [formGroup]="form" (ngSubmit)="crearPQRS()">
+
+      <div class="tipos" role="radiogroup" aria-label="Tipo de solicitud">
+        <button
+          type="button"
+          role="radio"
+          class="tipo"
+          *ngFor="let tipo of tiposPQRS"
+          [class.is-selected]="form.value.tipo === tipo"
+          [attr.aria-checked]="form.value.tipo === tipo"
+          (click)="seleccionarTipo(tipo)">
+          <span class="tipo__ico"><mat-icon>{{ icono(tipo) }}</mat-icon></span>
+          <span class="tipo__txt">
+            <strong>{{ etiquetaTipo(tipo) }}</strong>
+            <small>{{ ayudaTipo(tipo) }}</small>
+          </span>
+        </button>
+      </div>
+      <p class="tipo-error" *ngIf="form.get('tipo')?.touched && form.get('tipo')?.invalid">Selecciona un tipo</p>
+
+      <div class="campos">
+        <mat-form-field appearance="outline">
           <mat-label>Inmueble</mat-label>
           <mat-select formControlName="inmueble_id">
             <mat-option *ngFor="let inmueble of inmuebles" [value]="inmueble.id">
@@ -29,81 +52,101 @@
           <mat-error>Selecciona un inmueble</mat-error>
         </mat-form-field>
 
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Tipo</mat-label>
-          <mat-select formControlName="tipo">
-            <mat-option *ngFor="let tipo of tiposPQRS" [value]="tipo">
-              {{ tipo | titlecase }}
-            </mat-option>
-          </mat-select>
-          <mat-error>Selecciona un tipo</mat-error>
-        </mat-form-field>
-
-        <mat-form-field appearance="outline" class="full-width">
+        <mat-form-field appearance="outline" class="campo-desc">
           <mat-label>Descripción</mat-label>
-          <textarea matInput formControlName="descripcion" rows="4"
-            placeholder="Describe detalladamente tu petición, queja, reclamo o sugerencia...">
-          </textarea>
+          <textarea matInput formControlName="descripcion" rows="5"
+            placeholder="Cuéntanos con todo el detalle que necesites qué ocurrió o qué propones"></textarea>
+          <mat-hint align="end">{{ form.value.descripcion?.length || 0 }} caracteres · sin límite de longitud</mat-hint>
           <mat-error *ngIf="form.get('descripcion')?.hasError('required')">
             La descripción es obligatoria
           </mat-error>
-          <mat-error *ngIf="form.get('descripcion')?.hasError('minlength')">
-            Mínimo 10 caracteres
-          </mat-error>
         </mat-form-field>
-
-        <button
-          mat-raised-button
-          color="primary"
-          type="submit"
-          [disabled]="form.invalid || cargando">
-          {{ cargando ? 'Radicando...' : 'Radicar PQRS' }}
-        </button>
-
-      </form>
-    </mat-card-content>
-  </mat-card>
-
-  <!-- Lista de PQRS -->
-  <mat-card class="lista-card">
-    <mat-card-header>
-      <mat-card-title>Mis PQRS Radicadas</mat-card-title>
-    </mat-card-header>
-    <mat-card-content>
-
-      <div *ngIf="pqrsList.length === 0" class="sin-datos">
-        No tienes PQRS radicadas aún
       </div>
 
-      <mat-accordion *ngIf="pqrsList.length > 0">
-        <mat-expansion-panel *ngFor="let pqrs of pqrsList">
-          <mat-expansion-panel-header>
-            <mat-panel-title>
-              {{ pqrs.tipo | titlecase }} #{{ pqrs.id }}
-            </mat-panel-title>
-            <mat-panel-description>
-              <mat-chip [color]="getColorEstado(pqrs.estado)" selected>
-                {{ pqrs.estado }}
-              </mat-chip>
-            </mat-panel-description>
-          </mat-expansion-panel-header>
-
-          <p><strong>Descripción:</strong> {{ pqrs.descripcion }}</p>
-          <p><strong>Fecha:</strong> {{ pqrs.fecha_radicacion | date:'dd/MM/yyyy HH:mm' }}</p>
-
-          <div *ngIf="pqrs.respuesta_admin" class="respuesta-admin">
-            <strong>Respuesta de la administración:</strong>
-            <p>{{ pqrs.respuesta_admin }}</p>
+      <div class="qr-box">
+        <div class="qr-box__img">
+          <img *ngIf="qrImagen" [src]="qrImagen" alt="Código QR del texto escrito" width="180" height="180" />
+          <div *ngIf="!qrImagen" class="qr-box__vacio">
+            <mat-icon>qr_code_2</mat-icon>
           </div>
-
-          <div *ngIf="!pqrs.respuesta_admin" class="sin-respuesta">
-            <p>⏳ Pendiente de respuesta por la administración</p>
+        </div>
+        <div class="qr-box__info">
+          <strong>Código QR</strong>
+          <p *ngIf="!qrImagen && !qrError">Escribe en la descripción y aquí se generará tu código QR automáticamente.</p>
+          <p *ngIf="qrImagen">Este QR contiene el texto que escribiste. Se actualiza mientras escribes.</p>
+          <p class="qr-box__error" *ngIf="qrError" role="alert">{{ qrError }}</p>
+          <div class="qr-box__acciones">
+            <button type="button" mat-stroked-button class="btn-sec" (click)="descargarQR()" [disabled]="!qrImagen">
+              <mat-icon>download</mat-icon> Descargar QR
+            </button>
+            <button type="button" mat-stroked-button class="btn-sec" (click)="copiarTexto()" [disabled]="!textoQR">
+              <mat-icon>content_copy</mat-icon> Copiar texto
+            </button>
+            <button type="button" mat-stroked-button class="btn-sec" (click)="limpiarTexto()" [disabled]="!textoQR">
+              <mat-icon>delete_sweep</mat-icon> Borrar texto
+            </button>
           </div>
+        </div>
+      </div>
 
-        </mat-expansion-panel>
-      </mat-accordion>
+      <div class="form-actions">
+        <button mat-raised-button color="primary" type="submit" class="btn-submit" [disabled]="form.invalid || cargando">
+          {{ cargando ? 'Radicando...' : 'Radicar PQRS' }}
+        </button>
+      </div>
 
-    </mat-card-content>
-  </mat-card>
+    </form>
+  </section>
+
+  <section class="panel">
+    <div class="panel__head">
+      <div>
+        <h2 class="panel__title">Mis PQRS radicadas</h2>
+        <p class="panel__sub" *ngIf="pqrsList.length > 0">Abre una solicitud para ver su avance y la respuesta.</p>
+      </div>
+    </div>
+
+    <div *ngIf="pqrsList.length === 0" class="empty">
+      <mat-icon>forum</mat-icon>
+      <strong>Aún no has radicado PQRS</strong>
+      <span>Cuando radiques una, podrás seguirla desde aquí.</span>
+    </div>
+
+    <mat-accordion *ngIf="pqrsList.length > 0">
+      <mat-expansion-panel *ngFor="let pqrs of pqrsList">
+        <mat-expansion-panel-header>
+          <mat-panel-title>
+            <div class="pqrs-row">
+              <span class="pqrs-ico"><mat-icon>{{ icono(pqrs.tipo) }}</mat-icon></span>
+              <div class="pqrs-meta">
+                <strong>{{ etiquetaTipo(pqrs.tipo) }} #{{ pqrs.id }}</strong>
+                <span>{{ pqrs.fecha_radicacion | date:'dd/MM/yyyy HH:mm' }}</span>
+              </div>
+              <span class="pill pill--{{ pqrs.estado }}">{{ etiquetaEstado(pqrs.estado) }}</span>
+            </div>
+          </mat-panel-title>
+        </mat-expansion-panel-header>
+
+        <ol class="track" aria-label="Avance de la solicitud">
+          <li *ngFor="let paso of pasos; let i = index" [class.done]="i <= indicePaso(pqrs.estado)">{{ paso }}</li>
+        </ol>
+
+        <div class="bloque">
+          <span class="bloque__label">Tu mensaje</span>
+          <p>{{ pqrs.descripcion }}</p>
+        </div>
+
+        <div *ngIf="pqrs.respuesta_admin" class="respuesta">
+          <span class="bloque__label"><mat-icon>support_agent</mat-icon> Respuesta de la administración</span>
+          <p>{{ pqrs.respuesta_admin }}</p>
+        </div>
+
+        <div *ngIf="!pqrs.respuesta_admin" class="sin-respuesta">
+          <mat-icon>hourglass_empty</mat-icon>
+          <span>La administración aún no ha respondido.</span>
+        </div>
+      </mat-expansion-panel>
+    </mat-accordion>
+  </section>
 
 </div>

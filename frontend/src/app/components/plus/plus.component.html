@@ -1,0 +1,507 @@
+<main class="plus-shell" aria-labelledby="plus-title">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">IRIS · Servicios del conjunto</p>
+      <h1 id="plus-title">Plus</h1>
+      <p class="intro">Pagos, novedades y herramientas de administración en un solo lugar.</p>
+    </div>
+    <div class="header-actions">
+      <span class="role-chip" *ngIf="rol">{{ rol === 'admin' ? 'Administración' : rol === 'portero' ? 'Portería' : 'Residente' }}</span>
+      <button type="button" class="button secondary" (click)="reload()" [disabled]="isBusy('summary')" aria-label="Actualizar información">
+        <span aria-hidden="true">↻</span> Actualizar
+      </button>
+    </div>
+  </header>
+
+  <p class="feedback error-message" *ngIf="error" role="alert">{{ error }}</p>
+  <p class="feedback success-message" *ngIf="feedback" role="status" aria-live="polite">{{ feedback }}</p>
+  <p class="loading-line" *ngIf="isBusy('summary')" role="status">Cargando resumen…</p>
+
+  <section class="panel access-note" *ngIf="!esAdmin && !esResidente && !esPortero" aria-live="polite">
+    <h2>Acceso no disponible</h2>
+    <p>Esta vista está disponible para los roles de administración y residente.</p>
+  </section>
+
+  <ng-container *ngIf="esResidente">
+    <section class="panel" aria-labelledby="resident-summary-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Tu cuenta</p>
+          <h2 id="resident-summary-title">Resumen y notificaciones</h2>
+        </div>
+        <a class="button secondary" routerLink="/auth/password">Cambiar contraseña</a>
+      </div>
+      <p class="welcome" *ngIf="usuario?.nombre_completo || usuario?.nombre">
+        Hola, {{ usuario?.nombre_completo || usuario?.nombre }}.
+      </p>
+      <div class="summary-grid" *ngIf="summaryItems.length">
+        <article class="summary-tile" *ngFor="let item of summaryItems">
+          <span>{{ item.label }}</span>
+          <strong>{{ item.value }}</strong>
+        </article>
+      </div>
+      <div class="notification-list" aria-label="Notificaciones">
+        <h3>Notificaciones</h3>
+        <p class="muted" *ngIf="!notificaciones.length">No hay notificaciones disponibles en el resumen.</p>
+        <article class="notification-item" *ngFor="let notification of notificaciones">
+          <div>
+            <strong>{{ notification?.titulo || notification?.title || 'Notificación' }}</strong>
+            <p>{{ notification?.mensaje || notification?.message || notification?.descripcion }}</p>
+          </div>
+          <time *ngIf="notification?.creada_en || notification?.created_at">
+            {{ notification?.creada_en || notification?.created_at | date:'dd/MM/yyyy HH:mm' }}
+          </time>
+        </article>
+      </div>
+      <div class="push-actions">
+        <div>
+          <h3>Notificaciones push</h3>
+          <p class="muted">Actívalas solo si deseas recibir avisos en este dispositivo.</p>
+        </div>
+        <div class="button-row">
+          <button type="button" class="button primary" (click)="activarPush()" [disabled]="isBusy('push')">
+            {{ isBusy('push') ? 'Activando…' : 'Activar notificaciones' }}
+          </button>
+          <button type="button" class="button secondary" (click)="desactivarPush()" [disabled]="isBusy('push-delete')">
+            {{ isBusy('push-delete') ? 'Desactivando…' : 'Desactivar en este dispositivo' }}
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="resident-payments-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Conciliación manual</p>
+          <h2 id="resident-payments-title">Cuotas y solicitudes de verificación</h2>
+        </div>
+        <span class="count-badge">{{ pagos.length }} registros</span>
+      </div>
+      <p class="muted">Registra una solicitud para que administración verifique una cuota. Este formulario no procesa cobros con tarjeta.</p>
+
+      <form class="form-grid" (ngSubmit)="solicitarVerificacionPago()">
+        <label>
+          <span>Cuota que deseas reportar</span>
+          <select name="cuota_id" [(ngModel)]="paymentDraft.cuota_id" required>
+            <option value="">Selecciona una cuota pendiente</option>
+            <option *ngFor="let cuota of cuotas" [ngValue]="cuota.id" [disabled]="cuota.estado === 'pagada'">#{{ cuota.id }} · {{ cuota.concepto }} · {{ cuota.periodo }} · {{ cuota.monto | currency:'COP':'symbol-narrow':'1.0-2' }}</option>
+          </select>
+        </label>
+        <label>
+          <span>Referencia de transferencia <span class="optional">(opcional)</span></span>
+          <input type="text" name="referencia" maxlength="120" [(ngModel)]="paymentDraft.referencia" autocomplete="off">
+        </label>
+        <div class="form-actions full-width">
+          <button type="submit" class="button primary" [disabled]="isBusy('create-payment')">
+            {{ isBusy('create-payment') ? 'Enviando…' : 'Solicitar verificación' }}
+          </button>
+        </div>
+      </form>
+
+      <div class="list-heading"><h3>Pagos registrados</h3><span *ngIf="isBusy('payments')" class="muted">Actualizando…</span></div>
+      <p class="empty-state" *ngIf="!pagos.length && !isBusy('payments')">Aún no hay solicitudes de pago.</p>
+      <article class="record-card" *ngFor="let pago of pagos">
+        <div class="record-main">
+          <div class="record-title">
+            <h4>{{ pago?.concepto || 'Solicitud de pago de cuota' }}</h4>
+            <span class="status-pill" [attr.data-state]="pago?.estado">{{ pago?.estado || 'Sin estado' }}</span>
+          </div>
+          <p class="record-meta">
+            <span *ngIf="pago?.periodo">Periodo {{ pago.periodo }} · </span>
+            <span *ngIf="pago?.cuota_id">Cuota #{{ pago.cuota_id }} · </span>
+            <span *ngIf="pago?.inmueble_id">Inmueble #{{ pago.inmueble_id }} · </span>
+            <span *ngIf="pago?.monto">Monto {{ pago.monto | currency:'COP':'symbol-narrow':'1.0-2' }} · </span>
+            <span *ngIf="pago?.creado_en || pago?.created_at">{{ pago?.creado_en || pago?.created_at | date:'dd/MM/yyyy' }}</span>
+          </p>
+          <p class="record-meta" *ngIf="pago?.referencia">Referencia: {{ pago.referencia }}</p>
+          <p class="record-meta" *ngIf="pago?.notas">{{ pago.notas }}</p>
+        </div>
+        <button type="button" class="button secondary" *ngIf="pago?.id" (click)="abrirRecibo(pago)" [disabled]="isBusy('receipt-' + pago.id)">
+          {{ isBusy('receipt-' + pago.id) ? 'Abriendo…' : 'Ver recibo' }}
+        </button>
+      </article>
+    </section>
+
+    <section class="panel" aria-labelledby="resident-incidents-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Atención residencial</p>
+          <h2 id="resident-incidents-title">Reportar un incidente</h2>
+        </div>
+      </div>
+      <form class="form-grid" (ngSubmit)="reportarIncidente()">
+        <label class="full-width">
+          <span>Inmueble</span>
+          <select name="incidente_inmueble_id" [(ngModel)]="incidentDraft.inmueble_id" (ngModelChange)="selectResidentUnit($event)" required>
+            <option value="">Selecciona tu inmueble</option>
+            <option *ngFor="let unit of inmuebles" [ngValue]="unit.id">{{ unit.etiqueta || ('Inmueble #' + unit.id) }} · {{ unit.conjunto || ('Conjunto #' + unit.conjunto_id) }}</option>
+          </select>
+        </label>
+        <label>
+          <span>Categoría</span>
+          <select name="categoria" [(ngModel)]="incidentDraft.categoria">
+            <option value="mantenimiento">Mantenimiento</option>
+            <option value="seguridad">Seguridad</option>
+            <option value="convivencia">Convivencia</option>
+            <option value="servicios">Servicios</option>
+            <option value="otro">Otro</option>
+          </select>
+        </label>
+        <label>
+          <span>Título</span>
+          <input type="text" name="incidente_titulo" maxlength="160" [(ngModel)]="incidentDraft.titulo" required>
+        </label>
+        <label class="full-width">
+          <span>Descripción</span>
+          <textarea name="incidente_descripcion" rows="4" [(ngModel)]="incidentDraft.descripcion" required></textarea>
+        </label>
+        <div class="form-actions full-width">
+          <button type="submit" class="button primary" [disabled]="isBusy('create-incident')">
+            {{ isBusy('create-incident') ? 'Enviando…' : 'Enviar reporte' }}
+          </button>
+        </div>
+      </form>
+      <div class="list-heading"><h3>Mis incidentes</h3><span *ngIf="isBusy('incidents')" class="muted">Actualizando…</span></div>
+      <p class="empty-state" *ngIf="!incidentes.length && !isBusy('incidents')">No hay incidentes para mostrar.</p>
+      <article class="record-card" *ngFor="let incident of incidentes">
+        <div class="record-main">
+          <div class="record-title">
+            <h4>{{ incident?.titulo || incident?.title || 'Incidente' }}</h4>
+            <span class="status-pill" [attr.data-state]="incident?.estado">{{ incident?.estado || 'Sin estado' }}</span>
+          </div>
+          <p>{{ incident?.descripcion || incident?.description }}</p>
+          <p class="record-meta">
+            {{ incident?.categoria || 'General' }}
+            <span *ngIf="incident?.prioridad">· Prioridad {{ incident.prioridad }}</span>
+            <span *ngIf="incident?.creado_en || incident?.created_at">· {{ incident?.creado_en || incident?.created_at | date:'dd/MM/yyyy' }}</span>
+          </p>
+        </div>
+      </article>
+    </section>
+
+    <section class="panel" aria-labelledby="contacts-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Información útil</p>
+          <h2 id="contacts-title">Contactos de emergencia</h2>
+        </div>
+      </div>
+      <p class="muted">Administra los contactos asociados al conjunto y al inmueble indicado. Puedes definir si son visibles.</p>
+      <form class="form-grid" (ngSubmit)="agregarContactoEmergencia()">
+        <label class="full-width">
+          <span>Inmueble asociado</span>
+          <select name="contacto_inmueble_id" [(ngModel)]="contactDraft.inmueble_id" (ngModelChange)="selectResidentUnit($event)" required>
+            <option value="">Selecciona tu inmueble</option>
+            <option *ngFor="let unit of inmuebles" [ngValue]="unit.id">{{ unit.etiqueta || ('Inmueble #' + unit.id) }} · {{ unit.conjunto || ('Conjunto #' + unit.conjunto_id) }}</option>
+          </select>
+        </label>
+        <label>
+          <span>Nombre</span>
+          <input type="text" name="contacto_nombre" maxlength="120" [(ngModel)]="contactDraft.nombre" required autocomplete="name">
+        </label>
+        <label>
+          <span>Teléfono</span>
+          <input type="tel" name="contacto_telefono" maxlength="40" [(ngModel)]="contactDraft.telefono" required autocomplete="tel">
+        </label>
+        <label>
+          <span>Parentesco o relación <span class="optional">(opcional)</span></span>
+          <input type="text" name="contacto_parentesco" maxlength="80" [(ngModel)]="contactDraft.parentesco">
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" name="contacto_visible" [(ngModel)]="contactDraft.visible">
+          <span>Visible para quien consulte los contactos del inmueble</span>
+        </label>
+        <div class="form-actions full-width">
+          <button type="submit" class="button primary" [disabled]="isBusy('create-contact')">
+            {{ isBusy('create-contact') ? 'Guardando…' : 'Guardar contacto' }}
+          </button>
+        </div>
+      </form>
+      <div class="list-heading"><h3>Contactos guardados</h3><span *ngIf="isBusy('contacts')" class="muted">Actualizando…</span></div>
+      <p class="empty-state" *ngIf="!contactos.length && !isBusy('contacts')">No hay contactos de emergencia registrados.</p>
+      <article class="record-card" *ngFor="let contact of contactos">
+        <div class="record-main">
+          <div class="record-title"><h4>{{ contact?.nombre || 'Contacto' }}</h4><span class="status-pill" [attr.data-state]="contact?.visible ? 'visible' : 'privado'">{{ contact?.visible ? 'Visible' : 'No visible' }}</span></div>
+          <p>{{ contact?.telefono }} <span *ngIf="contact?.parentesco">· {{ contact.parentesco }}</span></p>
+          <p class="record-meta" *ngIf="contact?.inmueble_id || contact?.conjunto_id">Inmueble #{{ contact?.inmueble_id }} · Conjunto #{{ contact?.conjunto_id }}</p>
+        </div>
+        <button type="button" class="button danger-outline" *ngIf="contact?.id" (click)="eliminarContacto(contact)" [disabled]="isBusy('delete-contact-' + contact.id)">Eliminar</button>
+      </article>
+    </section>
+  </ng-container>
+
+  <ng-container *ngIf="esAdmin">
+    <section class="panel" aria-labelledby="admin-kpis-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Panel administrativo</p>
+          <h2 id="admin-kpis-title">Indicadores clave</h2>
+        </div>
+      </div>
+      <div class="kpi-grid">
+        <article class="kpi-card" *ngFor="let kpi of adminKpis">
+          <span>{{ kpi.label }}</span>
+          <strong>{{ kpi.value }}</strong>
+        </article>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="admin-payments-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Conciliación manual</p>
+          <h2 id="admin-payments-title">Revisión de pagos</h2>
+        </div>
+        <span class="count-badge">{{ pagos.length }} registros</span>
+      </div>
+      <p class="muted">Confirma o rechaza las solicitudes después de verificarlas. No se procesan pagos con tarjeta desde esta vista.</p>
+      <form class="form-grid manual-payment" (ngSubmit)="registrarPagoManual()">
+        <label><span>Registrar pago recibido por fuera de IRIS</span><select name="manual_fee_id" [(ngModel)]="manualPaymentDraft.cuota_id" required><option value="">Selecciona cuota pendiente</option><option *ngFor="let cuota of cuotas" [ngValue]="cuota.id" [disabled]="cuota.estado === 'pagada'">#{{ cuota.id }} · Apto #{{ cuota.inmueble_id }} · {{ cuota.concepto }} · {{ cuota.monto | currency:'COP':'symbol-narrow':'1.0-2' }}</option></select></label>
+        <label><span>Medio</span><select name="manual_method" [(ngModel)]="manualPaymentDraft.metodo"><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option><option value="consignacion">Consignación</option><option value="otro">Otro</option></select></label>
+        <label><span>Referencia (opcional)</span><input name="manual_reference" maxlength="120" [(ngModel)]="manualPaymentDraft.referencia"></label>
+        <label><span>Notas (opcional)</span><input name="manual_notes" maxlength="500" [(ngModel)]="manualPaymentDraft.notas"></label>
+        <div class="form-actions"><button type="submit" class="button secondary" [disabled]="isBusy('manual-payment')">{{ isBusy('manual-payment') ? 'Guardando…' : 'Registrar pago en caja' }}</button></div>
+      </form>
+      <p class="empty-state" *ngIf="!pagos.length && !isBusy('payments')">No hay solicitudes de pago.</p>
+      <article class="record-card" *ngFor="let pago of pagos">
+        <div class="record-main">
+          <div class="record-title">
+            <h3>{{ pago?.concepto || 'Pago de cuota' }}</h3>
+            <span class="status-pill" [attr.data-state]="pago?.estado">{{ pago?.estado || 'Sin estado' }}</span>
+          </div>
+          <p class="record-meta">
+            <span *ngIf="pago?.solicitante_nombre || pago?.usuario_nombre">{{ pago?.solicitante_nombre || pago?.usuario_nombre }} · </span>
+            <span *ngIf="pago?.cuota_id">Cuota #{{ pago.cuota_id }} · </span>
+            <span *ngIf="pago?.inmueble_id">Inmueble #{{ pago.inmueble_id }} · </span>
+            <span *ngIf="pago?.monto">{{ pago.monto | currency:'COP':'symbol-narrow':'1.0-2' }} · </span>
+            <span *ngIf="pago?.metodo">{{ pago.metodo }} · </span>
+            <span *ngIf="pago?.creado_en || pago?.created_at">{{ pago?.creado_en || pago?.created_at | date:'dd/MM/yyyy HH:mm' }}</span>
+          </p>
+          <p class="record-meta" *ngIf="pago?.referencia">Referencia: {{ pago.referencia }}</p>
+          <p class="record-meta" *ngIf="pago?.notas">Notas: {{ pago.notas }}</p>
+        </div>
+        <div class="button-row record-actions">
+          <button type="button" class="button secondary" *ngIf="pago?.id" (click)="abrirRecibo(pago)" [disabled]="isBusy('receipt-' + pago.id)">Ver recibo</button>
+          <ng-container *ngIf="pago?.estado !== 'verificado' && pago?.estado !== 'rechazado'">
+            <button type="button" class="button primary" (click)="decidirPago(pago, 'verificado')" [disabled]="isBusy('payment-' + pago.id)">Confirmar</button>
+            <button type="button" class="button danger-outline" (click)="decidirPago(pago, 'rechazado')" [disabled]="isBusy('payment-' + pago.id)">Rechazar</button>
+          </ng-container>
+        </div>
+      </article>
+    </section>
+
+    <section class="panel" aria-labelledby="admin-incidents-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Atención residencial</p>
+          <h2 id="admin-incidents-title">Gestión de incidentes</h2>
+        </div>
+      </div>
+      <p class="empty-state" *ngIf="!incidentes.length && !isBusy('incidents')">No hay incidentes reportados.</p>
+      <article class="record-card incident-admin-card" *ngFor="let incident of incidentes">
+        <div class="record-main">
+          <div class="record-title">
+            <h3>{{ incident?.titulo || incident?.title || 'Incidente' }}</h3>
+            <span class="status-pill" [attr.data-state]="incident?.estado">{{ incident?.estado || 'Sin estado' }}</span>
+          </div>
+          <p>{{ incident?.descripcion || incident?.description }}</p>
+          <p class="record-meta">
+            {{ incident?.categoria || 'General' }}
+            <span *ngIf="incident?.conjunto_id">· Conjunto #{{ incident.conjunto_id }}</span>
+            <span *ngIf="incident?.inmueble_id">· Inmueble #{{ incident.inmueble_id }}</span>
+          </p>
+          <div class="inline-edit-grid">
+            <label>
+              <span>Estado</span>
+              <select [name]="'estado-' + incident.id" [(ngModel)]="incident.estado">
+                <option value="abierto">Abierto</option>
+                <option value="en_proceso">En proceso</option>
+                <option value="resuelto">Resuelto</option>
+                <option value="cerrado">Cerrado</option>
+              </select>
+            </label>
+            <label>
+              <span>Prioridad</span>
+              <select [name]="'prioridad-' + incident.id" [(ngModel)]="incident.prioridad">
+                <option value="baja">Baja</option>
+                <option value="media">Media</option>
+                <option value="alta">Alta</option>
+                <option value="urgente">Urgente</option>
+              </select>
+            </label>
+            <label>
+              <span>Asignado a (ID usuario)</span>
+              <input type="number" min="1" step="1" [name]="'asignado-' + incident.id" [(ngModel)]="incident.asignado_a" inputmode="numeric">
+            </label>
+            <button type="button" class="button primary align-end" (click)="actualizarIncidente(incident)" [disabled]="isBusy('incident-' + incident.id)">
+              {{ isBusy('incident-' + incident.id) ? 'Guardando…' : 'Guardar cambios' }}
+            </button>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section class="panel" aria-labelledby="memberships-title" *ngIf="esSuperAdmin">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Accesos por conjunto</p>
+          <h2 id="memberships-title">Membresías</h2>
+        </div>
+      </div>
+      <form class="form-grid" (ngSubmit)="agregarMembresia()">
+        <label>
+          <span>Conjunto</span>
+          <select name="membership_conjunto" [(ngModel)]="membershipDraft.conjunto_id" required>
+            <option value="">Selecciona un conjunto</option>
+            <option *ngFor="let conjunto of conjuntos" [ngValue]="conjunto.id">{{ conjunto?.nombre || conjunto?.nombre_conjunto || ('Conjunto #' + conjunto.id) }}</option>
+          </select>
+        </label>
+        <label>
+          <span>Usuario</span>
+          <select name="membership_usuario" [(ngModel)]="membershipDraft.usuario_id" required>
+            <option value="">Selecciona un usuario</option>
+            <option *ngFor="let user of usuarios" [ngValue]="user.id">{{ user?.nombre_completo || user?.nombre || user?.email || ('Usuario #' + user.id) }}</option>
+          </select>
+        </label>
+        <label>
+          <span>Rol en el conjunto</span>
+          <select name="membership_rol" [(ngModel)]="membershipDraft.rol" required>
+            <option value="admin">Administración</option>
+            <option value="portero">Portería</option>
+            <option value="contador">Contador</option>
+          </select>
+        </label>
+        <div class="form-actions full-width">
+          <button type="submit" class="button primary" [disabled]="isBusy('create-membership')">Agregar membresía</button>
+        </div>
+      </form>
+      <div class="list-heading"><h3>Membresías registradas</h3><span *ngIf="isBusy('memberships')" class="muted">Actualizando…</span></div>
+      <p class="empty-state" *ngIf="!membresias.length && !isBusy('memberships')">No hay membresías para mostrar.</p>
+      <article class="record-card" *ngFor="let membership of membresias">
+        <div class="record-main">
+          <h4>{{ membership?.usuario?.nombre_completo || membership?.usuario_nombre || ('Usuario #' + membership?.usuario_id) }}</h4>
+          <p class="record-meta">{{ membership?.conjunto?.nombre || membership?.conjunto_nombre || ('Conjunto #' + membership?.conjunto_id) }} · {{ membership?.rol }}</p>
+        </div>
+        <button type="button" class="button danger-outline" *ngIf="membership?.id" (click)="eliminarMembresia(membership)" [disabled]="isBusy('delete-membership-' + membership.id)">Eliminar</button>
+      </article>
+    </section>
+
+    <section class="panel" aria-labelledby="blocks-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Reservas de zonas comunes</p>
+          <h2 id="blocks-title">Bloqueos de zona</h2>
+        </div>
+      </div>
+      <form class="form-grid" (ngSubmit)="crearBloqueoZona()">
+        <label>
+          <span>Zona común</span>
+          <select name="block_zone_id" [(ngModel)]="blockDraft.zona_id" required>
+            <option value="">Selecciona una zona</option>
+            <option *ngFor="let zone of zonas" [ngValue]="zone.id">{{ zone.nombre }} · conjunto #{{ zone.conjunto_id }}</option>
+          </select>
+        </label>
+        <label>
+          <span>Fecha y hora de inicio</span>
+          <input type="datetime-local" name="block_start" [(ngModel)]="blockDraft.fecha_inicio" required>
+        </label>
+        <label>
+          <span>Fecha y hora de fin</span>
+          <input type="datetime-local" name="block_end" [(ngModel)]="blockDraft.fecha_fin" required>
+        </label>
+        <label>
+          <span>Motivo</span>
+          <input type="text" name="block_reason" maxlength="240" [(ngModel)]="blockDraft.motivo" required>
+        </label>
+        <div class="form-actions full-width">
+          <button type="submit" class="button primary" [disabled]="isBusy('create-block')">Crear bloqueo</button>
+        </div>
+      </form>
+      <div class="list-heading"><h3>Bloqueos actuales</h3><span *ngIf="isBusy('blocks')" class="muted">Actualizando…</span></div>
+      <p class="empty-state" *ngIf="!bloqueos.length && !isBusy('blocks')">No hay bloqueos registrados.</p>
+      <article class="record-card" *ngFor="let block of bloqueos">
+        <div class="record-main">
+          <h4>{{ block?.motivo || 'Bloqueo de zona' }}</h4>
+          <p class="record-meta">Zona #{{ block?.zona_id }} · {{ block?.fecha_inicio | date:'dd/MM/yyyy HH:mm' }} a {{ block?.fecha_fin | date:'dd/MM/yyyy HH:mm' }}</p>
+        </div>
+        <button type="button" class="button danger-outline" *ngIf="block?.id" (click)="eliminarBloqueo(block)" [disabled]="isBusy('delete-block-' + block.id)">Eliminar</button>
+      </article>
+    </section>
+
+    <section class="panel" aria-labelledby="imports-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Archivos de gestión</p>
+          <h2 id="imports-title">Importaciones y reportes</h2>
+        </div>
+      </div>
+      <p class="muted">Usa las plantillas oficiales para preparar archivos XLSX antes de importar.</p>
+      <label class="import-set"><span>Conjunto para esta importación</span><select name="import_conjunto_id" [(ngModel)]="importConjuntoId"><option value="">Selecciona un conjunto</option><option *ngFor="let conjunto of conjuntos" [ngValue]="conjunto.id">{{ conjunto.nombre }} · #{{ conjunto.id }}</option></select></label>
+      <div class="import-grid">
+        <article class="import-card" *ngFor="let item of importKinds">
+          <h3>{{ item.label }}</h3>
+          <button type="button" class="button secondary" (click)="descargarPlantilla(item.kind)" [disabled]="isBusy('template-' + item.kind)">
+            {{ isBusy('template-' + item.kind) ? 'Descargando…' : 'Descargar plantilla XLSX' }}
+          </button>
+          <label class="file-picker" [for]="'file-' + item.kind">Archivo para importar</label>
+          <input class="file-input" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" [id]="'file-' + item.kind" [name]="'file-' + item.kind" (change)="seleccionarArchivo($event, item.kind)">
+          <p class="file-name" *ngIf="importFiles[item.kind]">{{ importFiles[item.kind]?.name }}</p>
+          <button type="button" class="button primary" (click)="importar(item.kind)" [disabled]="isBusy('import-' + item.kind)">
+            {{ isBusy('import-' + item.kind) ? 'Importando…' : 'Importar ' + item.label.toLowerCase() }}
+          </button>
+          <button type="button" class="text-button" (click)="descargarReporte(item.kind)" [disabled]="isBusy('export-' + item.kind)">
+            {{ isBusy('export-' + item.kind) ? 'Preparando…' : 'Descargar reporte XLSX' }}
+          </button>
+        </article>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="audit-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Trazabilidad</p>
+          <h2 id="audit-title">Bitácora reciente</h2>
+        </div>
+        <span class="count-badge">Máximo 50 eventos</span>
+      </div>
+      <p class="empty-state" *ngIf="!bitacora.length && !isBusy('audit')">No hay eventos de bitácora disponibles.</p>
+      <article class="audit-item" *ngFor="let event of bitacora">
+        <div class="audit-heading">
+          <strong>{{ event?.accion || event?.action || event?.evento || 'Evento' }}</strong>
+          <time *ngIf="event?.creado_en || event?.created_at || event?.fecha">{{ event?.creado_en || event?.created_at || event?.fecha | date:'dd/MM/yyyy HH:mm' }}</time>
+        </div>
+        <p class="record-meta" *ngIf="event?.usuario_nombre || event?.usuario_id">Usuario: {{ event?.usuario_nombre || ('#' + event.usuario_id) }}</p>
+        <details>
+          <summary>Ver detalle</summary>
+          <pre>{{ event | json }}</pre>
+        </details>
+      </article>
+    </section>
+
+    <section class="panel backup-panel" aria-labelledby="backup-title">
+      <div>
+        <p class="eyebrow">Resguardo</p>
+        <h2 id="backup-title">Crear respaldo</h2>
+        <p class="muted">Descarga el respaldo administrativo disponible en el servidor.</p>
+      </div>
+      <button type="button" class="button primary" (click)="crearRespaldo()" [disabled]="isBusy('backup')">
+        {{ isBusy('backup') ? 'Preparando respaldo…' : 'Descargar respaldo' }}
+      </button>
+    </section>
+  </ng-container>
+
+  <ng-container *ngIf="esPortero">
+    <section class="panel" aria-labelledby="porter-packages-title">
+      <div class="section-heading"><div><p class="eyebrow">Portería</p><h2 id="porter-packages-title">Registrar paquetería</h2></div><span class="count-badge">{{ paquetes.length }} registrados</span></div>
+      <form class="form-grid" (ngSubmit)="registrarPaquete()">
+        <label><span>Inmueble destinatario</span><select name="package_unit" [(ngModel)]="paqueteDraft.inmueble_id" required><option value="">Selecciona inmueble</option><option *ngFor="let unit of inmuebles" [ngValue]="unit.id">{{ unit.etiqueta }} · {{ unit.conjunto }}</option></select></label>
+        <label><span>Transportadora</span><input type="text" name="package_carrier" maxlength="100" [(ngModel)]="paqueteDraft.transportadora"></label>
+        <label><span>Descripción / guía parcial</span><input type="text" name="package_description" maxlength="240" [(ngModel)]="paqueteDraft.descripcion" required></label>
+        <div class="form-actions"><button type="submit" class="button primary" [disabled]="isBusy('create-package')">Registrar paquete</button></div>
+      </form>
+      <div class="list-heading"><h3>Paquetes en custodia</h3></div>
+      <p class="empty-state" *ngIf="!paquetes.length">No hay paquetes para tus conjuntos.</p>
+      <article class="record-card" *ngFor="let pkg of paquetes"><div class="record-main"><h4>{{ pkg.descripcion || 'Paquete' }}</h4><p class="record-meta">{{ pkg.transportadora || 'Sin transportadora' }} · Inmueble #{{ pkg.inmueble_id }} · {{ pkg.retirado ? 'Retirado' : 'Pendiente de retiro' }}</p></div><button class="button primary" type="button" *ngIf="!pkg.retirado" (click)="retirarPaquete(pkg)" [disabled]="isBusy('package-' + pkg.id)">Confirmar retiro</button></article>
+    </section>
+  </ng-container>
+</main>

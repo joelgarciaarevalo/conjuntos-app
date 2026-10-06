@@ -1,0 +1,137 @@
+/* Sin encapsulación (ver componente): todo queda acotado bajo app-admin-qr */
+app-admin-qr { display: block; min-height: 100vh; }
+
+/* ---------- Campos Material sobre fondo oscuro (mismo estilo que reservas/PQRS) ---------- */
+app-admin-qr .mat-mdc-form-field {
+  --mdc-outlined-text-field-outline-color: rgba(136, 201, 195, 0.38);
+  --mdc-outlined-text-field-hover-outline-color: var(--iris-300);
+  --mdc-outlined-text-field-focus-outline-color: var(--iris-300);
+  --mdc-outlined-text-field-label-text-color: var(--muted);
+  --mdc-outlined-text-field-hover-label-text-color: var(--iris-50);
+  --mdc-outlined-text-field-focus-label-text-color: var(--iris-300);
+  --mdc-outlined-text-field-input-text-color: var(--ink);
+  --mdc-outlined-text-field-input-text-placeholder-color: rgba(159, 207, 202, 0.7);
+  --mdc-outlined-text-field-caret-color: var(--iris-300);
+  --mdc-outlined-text-field-error-outline-color: var(--coral);
+  --mdc-outlined-text-field-error-label-text-color: var(--coral);
+  --mat-select-enabled-trigger-text-color: var(--ink);
+  --mat-select-placeholder-text-color: rgba(159, 207, 202, 0.7);
+  --mat-select-enabled-arrow-color: var(--muted);
+  --mat-select-focused-arrow-color: var(--iris-300);
+  --mat-form-field-error-text-color: var(--coral);
+  --mat-form-field-subscript-text-color: var(--muted);
+  font-family: 'Manrope', sans-serif;
+}
+app-admin-qr input { color-scheme: dark; }
+app-admin-qr .mat-mdc-checkbox {
+  --mdc-checkbox-unselected-icon-color: var(--muted);
+  --mdc-checkbox-selected-icon-color: var(--iris-500);
+  --mdc-checkbox-selected-hover-icon-color: var(--iris-300);
+  --mdc-checkbox-selected-focus-icon-color: var(--iris-300);
+  --mdc-checkbox-selected-checkmark-color: #04252b;
+  --mdc-form-field-label-text-color: var(--ink);
+  --mat-checkbox-label-text-color: var(--ink);
+}
+
+/* ---------- Selector de tipo ---------- */
+app-admin-qr .tipo-group { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 20px; }
+app-admin-qr .tipo-opt {
+  appearance: none; font: inherit; cursor: pointer; color: var(--ink);
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 12px 14px; border-radius: 14px; font-weight: 700;
+  background: var(--surface); border: 1px solid var(--line);
+  transition: background 0.15s, border-color 0.15s;
+}
+app-admin-qr .tipo-opt:hover { background: var(--surface-strong); }
+app-admin-qr .tipo-opt.is-active { background: rgba(62, 155, 147, 0.22); border-color: var(--iris-300); }
+app-admin-qr .tipo-opt .mat-icon { color: var(--iris-300); }
+
+/* ---------- Formulario ---------- */
+app-admin-qr .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 16px; }
+app-admin-qr .form-grid .col-full { grid-column: 1 / -1; }
+app-admin-qr .form-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; }
+app-admin-qr .btn-submit { height: 48px; min-width: 160px; padding: 0 28px; }
+app-admin-qr .btn-lote,
+app-admin-qr .btn-sec {
+  height: 42px; border-radius: 12px; font-weight: 700;
+  --mdc-outlined-button-outline-color: rgba(136, 201, 195, 0.5);
+  --mdc-outlined-button-label-text-color: var(--iris-50);
+}
+app-admin-qr .btn-lote:hover,
+app-admin-qr .btn-sec:hover { background: rgba(136, 201, 195, 0.12); }
+app-admin-qr .btn-cerrar { --mdc-text-button-label-text-color: var(--muted); }
+
+/* ---------- Vista previa ---------- */
+app-admin-qr .preview { display: grid; grid-template-columns: auto 1fr; gap: 28px; align-items: center; }
+app-admin-qr .preview__qr {
+  background: #fff; border-radius: 18px; padding: 14px; line-height: 0;
+  width: 260px; height: 260px; display: grid; place-items: center;
+}
+app-admin-qr .preview__qr img { width: 260px; height: 260px; display: block; }
+app-admin-qr .preview__loading { color: #4b7a7a; font-weight: 600; line-height: 1.4; }
+app-admin-qr .preview__info { display: grid; gap: 10px; justify-items: start; min-width: 0; }
+app-admin-qr .preview__info h2.panel__title { margin: 4px 0 0; }
+app-admin-qr .preview__info p.panel__sub { margin: 0; }
+app-admin-qr .preview__datos { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; color: var(--ink); }
+app-admin-qr .preview__datos li { display: flex; align-items: center; gap: 8px; font-size: 0.95rem; }
+app-admin-qr .preview__datos .mat-icon { font-size: 20px; width: 20px; height: 20px; color: var(--iris-300); }
+app-admin-qr .preview__codigo {
+  max-width: 100%; overflow-wrap: anywhere;
+  padding: 8px 12px; border-radius: 10px; font-size: 0.82rem;
+  background: rgba(0, 0, 0, 0.25); color: var(--iris-50); border: 1px solid var(--line);
+}
+app-admin-qr .preview__acciones { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 4px; }
+app-admin-qr .preview__acciones .mat-mdc-raised-button { height: 42px; }
+app-admin-qr .preview__acciones .mat-icon,
+app-admin-qr .btn-lote .mat-icon,
+app-admin-qr .btn-submit .mat-icon { margin-right: 6px; }
+
+/* ---------- Estados (pill) ---------- */
+app-admin-qr .pill--activo { background: rgba(62, 155, 147, 0.34); color: var(--iris-50); }
+app-admin-qr .pill--programado { background: rgba(136, 201, 195, 0.18); color: var(--iris-300); }
+app-admin-qr .pill--vencido,
+app-admin-qr .pill--agotado { background: rgba(242, 200, 135, 0.16); color: var(--amber); }
+app-admin-qr .pill--revocado { background: rgba(242, 153, 141, 0.16); color: var(--coral); }
+
+/* ---------- Tabla ---------- */
+app-admin-qr .tipo-cell { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; }
+app-admin-qr .tipo-cell .mat-icon { color: var(--iris-300); font-size: 20px; width: 20px; height: 20px; }
+app-admin-qr .acciones { display: flex; gap: 2px; flex-wrap: nowrap; }
+app-admin-qr .acciones .mat-mdc-icon-button { --mdc-icon-button-icon-color: var(--iris-300); }
+app-admin-qr .acciones .btn-revocar { --mdc-icon-button-icon-color: var(--coral); }
+
+/* ---------- Portería ---------- */
+app-admin-qr .validar-row { display: flex; gap: 14px; align-items: flex-start; }
+app-admin-qr .validar-campo { flex: 1 1 auto; }
+app-admin-qr .chk-registrar { display: block; margin: -8px 0 12px; }
+
+app-admin-qr .resultado {
+  display: flex; align-items: center; gap: 14px; margin-top: 8px;
+  padding: 16px 18px; border-radius: 16px; border: 1px solid var(--line);
+}
+app-admin-qr .resultado .mat-icon { flex: none; font-size: 36px; width: 36px; height: 36px; }
+app-admin-qr .resultado__texto { flex: 1; min-width: 0; display: grid; gap: 2px; }
+app-admin-qr .resultado__texto strong { font-size: 1.1rem; }
+app-admin-qr .resultado__det { font-size: 0.86rem; color: var(--muted); }
+app-admin-qr .resultado--ok { background: rgba(62, 155, 147, 0.22); border-color: var(--iris-300); }
+app-admin-qr .resultado--ok > .mat-icon { color: var(--iris-300); }
+app-admin-qr .resultado--no { background: rgba(242, 153, 141, 0.14); border-color: rgba(242, 153, 141, 0.55); }
+app-admin-qr .resultado--no > .mat-icon { color: var(--coral); }
+
+app-admin-qr .subtitulo-lista { margin: 24px 0 8px; font-size: 1rem; font-weight: 700; color: var(--ink); }
+app-admin-qr .accesos { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+app-admin-qr .accesos li { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-top: 1px solid var(--line); }
+app-admin-qr .accesos li:first-child { border-top: 0; }
+app-admin-qr .accesos .mat-icon { flex: none; }
+app-admin-qr .ico-ok { color: var(--iris-300); }
+app-admin-qr .ico-no { color: var(--coral); }
+
+@media (max-width: 760px) {
+  app-admin-qr .form-grid { grid-template-columns: 1fr; }
+  app-admin-qr .form-actions { justify-content: stretch; }
+  app-admin-qr .btn-submit { width: 100%; }
+  app-admin-qr .preview { grid-template-columns: 1fr; justify-items: center; }
+  app-admin-qr .preview__info { justify-items: stretch; }
+  app-admin-qr .validar-row { flex-direction: column; }
+  app-admin-qr .validar-row .btn-submit { width: 100%; }
+}

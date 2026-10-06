@@ -1,31 +1,17 @@
-.spacer {
-  flex: 1 1 auto;
-}
+:host { display: block; min-height: 100vh; }
 
-.container {
-  padding: 24px;
-  max-width: 900px;
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
+.zone-rules{display:flex;gap:8px;flex-direction:column;background:#eff7f6;border:1px solid #d5e6e3;border-radius:9px;padding:13px 15px;margin-top:14px;color:#24555b}.zone-rules span{font-size:14px;color:#60777a}
 
-.form-card, .tabla-card {
-  padding: 16px;
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 16px;
 }
+.form-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; }
+.btn-submit { height: 48px; min-width: 160px; padding: 0 28px; }
 
-.full-width {
-  width: 100%;
-  margin-bottom: 16px;
-}
-
-.sin-datos {
-  text-align: center;
-  padding: 40px;
-  color: #666;
-}
-
-table {
-  width: 100%;
+@media (max-width: 700px) {
+  .form-grid { grid-template-columns: 1fr; }
+  .form-actions { justify-content: stretch; }
+  .btn-submit { width: 100%; }
 }

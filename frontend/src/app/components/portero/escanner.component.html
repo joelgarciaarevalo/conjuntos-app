@@ -1,0 +1,9 @@
+<header class="bar"><button (click)="back()">‹ Inicio</button><b>Portería · Validación de acceso</b><button (click)="goServices()">Paquetería</button><button (click)="goModulos()">Módulos 3.0</button><button (click)="logout()">Salir</button></header>
+<main class="wrap"><h1>Escanear código QR</h1><p>Apunta la cámara al código. La validación y el descuento de ingreso se registran en el servidor.</p>
+  <section class="card"><div class="camera"><video #video playsinline muted></video><div *ngIf="!scanning" class="cam-placeholder">La cámara se activa al iniciar el escáner.</div></div>
+    <div class="actions"><button class="primary" *ngIf="!scanning" (click)="start()">Activar cámara</button><button *ngIf="scanning" (click)="stop()">Detener cámara</button></div>
+    <p class="error" *ngIf="error">{{error}}</p>
+    <hr><label for="manual">O ingresa el código manualmente</label><div class="manual"><input id="manual" [(ngModel)]="codigo" placeholder="IRIS-QR:…" (keydown.enter)="validar()"><button class="primary" (click)="validar()" [disabled]="busy || !codigo.trim()">{{busy ? 'Validando…' : 'Validar y registrar ingreso'}}</button></div>
+  </section>
+  <section *ngIf="resultado" class="result" [class.ok]="resultado.valido" [class.no]="!resultado.valido"><div class="symbol">{{resultado.valido ? '✓' : '×'}}</div><div><h2>{{resultado.valido ? 'Acceso permitido' : 'Acceso denegado'}}</h2><p>{{resultado.motivo}}</p><ng-container *ngIf="resultado.qr as q"><p><b>{{q.tipo === 'visita' ? q.visitante_nombre : q.residente_nombre}}</b> · {{q.inmueble_etiqueta}}</p><p>Usos registrados: {{q.usos_actuales}} / {{q.usos_maximos ?? 'sin límite'}} · {{q.valido_hasta ? (q.valido_hasta | date:'dd/MM/yyyy HH:mm') : 'sin vencimiento'}}</p></ng-container><button (click)="nuevaLectura()">Siguiente lectura</button></div></section>
+</main>

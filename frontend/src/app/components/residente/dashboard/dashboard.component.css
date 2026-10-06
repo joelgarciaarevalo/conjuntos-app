@@ -1,3 +1,10 @@
+:host {
+  display: block;
+  min-height: 100vh;
+  color: var(--ink);
+}
+
+
 .spacer {
   flex: 1 1 auto;
 }
@@ -11,11 +18,11 @@
 h1 {
   font-size: 2rem;
   margin-bottom: 8px;
-  color: #333;
+  color: #ecfeff;
 }
 
 .subtitulo {
-  color: #666;
+  color: #d6f1ff;
   margin-bottom: 40px;
   font-size: 1.1rem;
 }
@@ -30,26 +37,45 @@ h1 {
   cursor: pointer;
   transition: transform 0.2s, box-shadow 0.2s;
   padding: 16px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--line);
+  color: #ecfeff;
 }
 
 .opcion-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  box-shadow: 0 8px 24px rgba(136, 201, 195, 0.18);
 }
 
 .card-icon {
   font-size: 48px;
   width: 48px;
   height: 48px;
-  color: #3f51b5;
+  color: var(--iris-300);
   margin-bottom: 16px;
 }
 
 h2 {
   font-size: 1.3rem;
   margin-bottom: 8px;
+  color: #edfeff;
 }
 
 p {
-  color: #666;
+  color: #dfefff;
+}
+
+.mat-mdc-raised-button.mat-primary,
+.mat-mdc-raised-button.mat-accent,
+.mat-mdc-raised-button {
+  background: var(--iris-500) !important;
+  color: #04252b !important;
+  border: none !important;
+  box-shadow: 0 6px 18px rgba(136, 201, 195, 0.18) !important;
+}
+
+.mat-mdc-raised-button.mat-primary .mat-icon,
+.mat-mdc-raised-button.mat-accent .mat-icon,
+.mat-mdc-raised-button .mat-icon {
+  color: #04252b !important;
 }

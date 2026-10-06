@@ -1,14 +1,41 @@
-<div class="registro-container">
-  <mat-card class="registro-card">
-    <mat-card-header>
-      <mat-card-title>🏢 Crear Cuenta</mat-card-title>
-      <mat-card-subtitle>Completa tus datos para registrarte</mat-card-subtitle>
-    </mat-card-header>
+<div class="auth">
+  <section class="auth__brand">
+    <div class="auth__id">
+      <img src="assets/iris-mark.svg" alt="" class="auth__mark" />
+      <div>
+        <h1 class="auth__name">IRIS</h1>
+        <p class="auth__tag">Gestión residencial</p>
+      </div>
+    </div>
 
-    <mat-card-content>
+    <ul class="acronym" aria-label="Significado de IRIS">
+      <li>
+        <span class="acronym__l" aria-hidden="true">I</span>
+        <span><span class="acronym__w">Inmuebles</span><span class="acronym__d">Torres y apartamentos del conjunto en un solo lugar.</span></span>
+      </li>
+      <li>
+        <span class="acronym__l" aria-hidden="true">R</span>
+        <span><span class="acronym__w">Reservas</span><span class="acronym__d">Salón social, piscina y gimnasio sin cruces de horario.</span></span>
+      </li>
+      <li>
+        <span class="acronym__l" aria-hidden="true">I</span>
+        <span><span class="acronym__w">Incidencias</span><span class="acronym__d">Peticiones, quejas, reclamos y sugerencias (PQRS).</span></span>
+      </li>
+      <li>
+        <span class="acronym__l" aria-hidden="true">S</span>
+        <span><span class="acronym__w">Servicios</span><span class="acronym__d">Respuestas claras y seguimiento de la administración.</span></span>
+      </li>
+    </ul>
+  </section>
+
+  <section class="auth__form">
+    <div class="auth__card">
+      <h2>Crea tu cuenta</h2>
+      <p class="auth__hint">Completa tus datos para registrarte.</p>
+
       <form [formGroup]="form" (ngSubmit)="registro()">
 
-        <mat-form-field appearance="outline" class="full-width">
+        <mat-form-field appearance="outline">
           <mat-label>Nombre completo</mat-label>
           <input matInput formControlName="nombre_completo" placeholder="Juan Pérez">
           <mat-error *ngIf="form.get('nombre_completo')?.hasError('required')">
@@ -16,7 +43,7 @@
           </mat-error>
         </mat-form-field>
 
-        <mat-form-field appearance="outline" class="full-width">
+        <mat-form-field appearance="outline">
           <mat-label>Cédula</mat-label>
           <input matInput formControlName="cedula" placeholder="12345678">
           <mat-error *ngIf="form.get('cedula')?.hasError('required')">
@@ -24,7 +51,7 @@
           </mat-error>
         </mat-form-field>
 
-        <mat-form-field appearance="outline" class="full-width">
+        <mat-form-field appearance="outline">
           <mat-label>Correo electrónico</mat-label>
           <input matInput formControlName="email" type="email" placeholder="tu@email.com">
           <mat-error *ngIf="form.get('email')?.hasError('required')">
@@ -35,7 +62,7 @@
           </mat-error>
         </mat-form-field>
 
-        <mat-form-field appearance="outline" class="full-width">
+        <mat-form-field appearance="outline">
           <mat-label>Contraseña</mat-label>
           <input matInput formControlName="password" type="password">
           <mat-error *ngIf="form.get('password')?.hasError('required')">
@@ -46,25 +73,18 @@
           </mat-error>
         </mat-form-field>
 
-        <mat-form-field appearance="outline" class="full-width">
+        <mat-form-field appearance="outline">
           <mat-label>Teléfono (opcional)</mat-label>
           <input matInput formControlName="telefono" placeholder="3001234567">
         </mat-form-field>
 
-        <button
-          mat-raised-button
-          color="primary"
-          class="full-width"
-          type="submit"
-          [disabled]="form.invalid || cargando">
+        <button class="auth__submit" type="submit" [disabled]="form.invalid || cargando">
           {{ cargando ? 'Registrando...' : 'Registrarse' }}
         </button>
 
       </form>
-    </mat-card-content>
 
-    <mat-card-actions>
-      <p>¿Ya tienes cuenta? <a routerLink="/login">Inicia sesión</a></p>
-    </mat-card-actions>
-  </mat-card>
+      <p class="auth__alt">¿Ya tienes cuenta? <a routerLink="/login">Inicia sesión</a></p>
+    </div>
+  </section>
 </div>

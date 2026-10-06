@@ -1,0 +1,141 @@
+<main class="finance-shell" id="inicio">
+  <header class="topbar">
+    <div><p class="eyebrow">IRIS · Finanzas del conjunto</p><h1>Contabilidad y cartera</h1><p>Gestión de cuotas y verificación de pagos en tus conjuntos asignados.</p></div>
+    <div class="top-actions"><a routerLink="/auth/password">Cambiar contraseña</a><button type="button" class="button outline" (click)="salir()">Cerrar sesión</button></div>
+  </header>
+
+  <section class="context panel">
+    <label><span>Conjunto asignado</span>
+      <select [value]="conjuntoId" (change)="cambiarConjunto($any($event.target).value)" [disabled]="conjuntos.length < 2">
+        <option *ngFor="let conjunto of conjuntos" [value]="conjunto.id">{{ conjunto.nombre }}</option>
+      </select>
+    </label>
+    <button type="button" class="button outline" (click)="cargarDatos()" [disabled]="loading || conjuntoId === null">Actualizar</button>
+    <button type="button" class="button outline" (click)="exportarCsv()" [disabled]="loading">Exportar reporte CSV</button>
+  </section>
+
+  <section class="panel accountant-nav">
+    <div class="section-title"><div><p class="eyebrow">Área profesional</p><h2>Herramientas del contador</h2><p>Acceso de trabajo financiero para el conjunto asignado.</p></div></div>
+    <nav class="module-links" aria-label="Módulos contables">
+      <a href="#registros">Registros contables</a><a href="#estados">Estados financieros</a><a href="#certificacion">Certificación</a>
+      <a href="#presupuesto">Presupuesto</a><a href="#tributario">Obligaciones tributarias</a><a href="#puc">Plan de cuentas PUC</a>
+      <a href="#documentos">Registro de documentos</a><a href="#registros">Asientos automáticos</a><a href="#cartera-lote">Facturación y cartera</a>
+      <a href="#proveedores">Cuentas por pagar</a><a href="#fondos">Fondos de reserva</a><a href="#auditoria">Pistas de auditoría</a>
+    </nav>
+  </section>
+
+  <p class="alert error" *ngIf="error" role="alert">{{ error }}</p>
+  <p class="alert success" *ngIf="success" role="status">{{ success }}</p>
+  <p class="alert" *ngIf="loading" role="status">Cargando información financiera…</p>
+
+  <section class="metrics" id="resumen" aria-label="Resumen financiero">
+    <article class="metric"><span>Cuotas pendientes</span><strong>{{ cuotasPendientes.length }}</strong></article>
+    <article class="metric"><span>Saldo pendiente</span><strong>{{ saldoPendiente | currency:'COP':'symbol-narrow':'1.0-0' }}</strong></article>
+    <article class="metric"><span>Cuotas pagadas</span><strong>{{ cuotas.length - cuotasPendientes.length }}</strong></article>
+    <article class="metric"><span>Total recaudado</span><strong>{{ totalPagado | currency:'COP':'symbol-narrow':'1.0-0' }}</strong></article>
+  </section>
+
+  <section class="panel">
+    <div class="section-title"><div><p class="eyebrow">Cartera</p><h2>Crear cuota</h2></div></div>
+    <form class="form-grid" (ngSubmit)="crearCuota()">
+      <label><span>Inmueble</span><select name="unit" [(ngModel)]="cuota.inmueble_id" required><option *ngFor="let unit of inmuebles" [ngValue]="unit.id">{{ unit.torre ? unit.torre + ' · ' : '' }}{{ unit.numero }}</option></select></label>
+      <label><span>Concepto</span><input name="concepto" [(ngModel)]="cuota.concepto" maxlength="160" required></label>
+      <label><span>Periodo (AAAA-MM)</span><input name="periodo" [(ngModel)]="cuota.periodo" placeholder="2026-10" pattern="[0-9]{4}-[0-9]{2}" required></label>
+      <label><span>Valor (COP)</span><input name="monto" type="number" min="1" step="0.01" [(ngModel)]="cuota.monto" required></label>
+      <label><span>Fecha de vencimiento</span><input name="vencimiento" type="date" [(ngModel)]="cuota.fecha_vencimiento" required></label>
+      <div class="form-action"><button class="button" type="submit" [disabled]="saving || !inmuebles.length">{{ saving ? 'Guardando…' : 'Registrar cuota' }}</button></div>
+    </form>
+  </section>
+
+  <section class="panel">
+    <div class="section-title"><div><p class="eyebrow">Conciliación</p><h2>Pagos pendientes de verificar</h2></div><span class="pill">{{ pagosPendientes.length }} pendientes</span></div>
+    <div class="table-tools" *ngIf="pagosPendientes.length"><label class="search-control"><span aria-hidden="true">⌕</span><input [(ngModel)]="buscarPagos" placeholder="Buscar por inmueble, método o referencia" aria-label="Buscar pagos"></label><span>{{ pagosPendientesFiltrados.length }} de {{ pagosPendientes.length }} pagos</span></div>
+    <div class="table-wrap" *ngIf="pagosPendientesFiltrados.length; else noPayments">
+      <table><thead><tr><th>Fecha</th><th>Inmueble</th><th>Cuota</th><th>Método</th><th>Referencia</th><th>Monto</th><th>Acciones</th></tr></thead>
+        <tbody><tr *ngFor="let pago of pagosPendientesFiltrados"><td>{{ pago.creado_en | date:'dd/MM/yyyy HH:mm' }}</td><td>{{ etiquetaUnidad(pago.inmueble_id) }}</td><td>#{{ pago.cuota_id }}</td><td>{{ pago.metodo }}</td><td>{{ pago.referencia || '—' }}</td><td>{{ pago.monto | currency:'COP':'symbol-narrow':'1.0-0' }}</td><td class="actions"><button class="button tiny" (click)="verificarPago(pago, 'verificado')" [disabled]="saving">Verificar</button><button class="button tiny danger" (click)="verificarPago(pago, 'rechazado')" [disabled]="saving">Rechazar</button></td></tr></tbody>
+      </table>
+    </div>
+    <ng-template #noPayments><p class="empty">No hay pagos pendientes o no se encontraron coincidencias.</p></ng-template>
+  </section>
+
+  <section class="panel">
+    <div class="section-title"><div><p class="eyebrow">Movimientos</p><h2>Cuotas del conjunto</h2></div></div>
+    <div class="record-controls"><label><span>Método de pago recibido</span><select [(ngModel)]="metodoPago"><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option><option value="consignacion">Consignación</option><option value="otro">Otro</option></select></label><label><span>Referencia (opcional)</span><input [(ngModel)]="referenciaPago" maxlength="120" placeholder="Recibo o comprobante"></label></div>
+    <div class="table-tools" *ngIf="cuotas.length"><label class="search-control"><span aria-hidden="true">⌕</span><input [(ngModel)]="buscarCuotas" placeholder="Buscar cuota, inmueble o estado" aria-label="Buscar cuotas"></label><span>{{ cuotasFiltradas.length }} de {{ cuotas.length }} cuotas</span></div>
+    <div class="table-wrap" *ngIf="cuotasFiltradas.length; else noFees">
+      <table><thead><tr><th>Vence</th><th>Inmueble</th><th>Concepto</th><th>Periodo</th><th>Monto</th><th>Estado</th><th>Acción</th></tr></thead>
+        <tbody><tr *ngFor="let row of cuotasFiltradas"><td>{{ row.fecha_vencimiento | date:'dd/MM/yyyy' }}</td><td>{{ etiquetaUnidad(row.inmueble_id) }}</td><td>{{ row.concepto }}</td><td>{{ row.periodo }}</td><td>{{ row.monto | currency:'COP':'symbol-narrow':'1.0-0' }}</td><td><span class="pill" [class.paid]="row.estado === 'pagada'">{{ row.estado }}</span></td><td><button *ngIf="row.estado !== 'pagada'" class="button tiny" (click)="registrarPago(row)" [disabled]="saving">Registrar pago recibido</button><span *ngIf="row.estado === 'pagada'" class="muted">—</span></td></tr></tbody>
+      </table>
+    </div>
+    <ng-template #noFees><p class="empty">No hay cuotas registradas para este conjunto.</p></ng-template>
+  </section>
+
+  <section class="panel">
+    <div class="section-title"><div><p class="eyebrow">Contabilidad</p><h2>{{ egresoEditId ? 'Editar egreso' : 'Registrar egreso' }}</h2></div></div>
+    <form id="egreso-form" class="form-grid" (ngSubmit)="guardarEgreso()">
+      <label><span>Concepto</span><input name="egresoConcepto" [(ngModel)]="egreso.concepto" maxlength="160" required></label>
+      <label><span>Categoría</span><input name="egresoCategoria" [(ngModel)]="egreso.categoria" maxlength="60" required></label>
+      <label><span>Monto (COP)</span><input name="egresoMonto" type="number" min="0.01" step="0.01" [(ngModel)]="egreso.monto" required></label>
+      <label><span>Fecha</span><input name="egresoFecha" type="date" [(ngModel)]="egreso.fecha" required></label>
+      <div class="form-action"><button class="button" type="submit" [disabled]="saving">{{ egresoEditId ? 'Guardar cambios' : 'Registrar egreso' }}</button><button *ngIf="egresoEditId" class="button outline" type="button" (click)="cancelarEdicionEgreso()">Cancelar</button></div>
+    </form>
+    <div class="table-tools" *ngIf="egresos.length"><label class="search-control"><span aria-hidden="true">⌕</span><input [(ngModel)]="buscarEgresos" placeholder="Buscar por concepto o categoría" aria-label="Buscar egresos"></label><span>{{ egresosFiltrados.length }} de {{ egresos.length }} egresos</span></div>
+    <div class="table-wrap" *ngIf="egresosFiltrados.length; else noExpenses">
+      <table><thead><tr><th>Fecha</th><th>Concepto</th><th>Categoría</th><th>Monto</th><th>Acciones</th></tr></thead>
+        <tbody><tr *ngFor="let row of egresosFiltrados"><td>{{ row.fecha | date:'dd/MM/yyyy' }}</td><td>{{ row.concepto }}</td><td>{{ row.categoria }}</td><td>{{ row.monto | currency:'COP':'symbol-narrow':'1.0-0' }}</td><td class="actions"><button class="button tiny outline" type="button" (click)="editarEgreso(row)">Editar</button><button class="button tiny danger" type="button" (click)="eliminarEgreso(row)" [disabled]="saving">Eliminar</button></td></tr></tbody>
+      </table>
+    </div>
+    <ng-template #noExpenses><p class="empty">{{ buscarEgresos ? 'No se encontraron coincidencias.' : 'No hay egresos registrados para este conjunto.' }}</p></ng-template>
+  </section>
+
+  <section class="panel">
+    <div class="section-title"><div><p class="eyebrow">Planeación financiera</p><h2>Presupuesto por periodo</h2></div></div>
+    <form class="form-grid" (ngSubmit)="guardarPresupuesto()">
+      <label><span>Periodo (AAAA-MM)</span><input name="presupuestoPeriodo" [(ngModel)]="presupuesto.periodo" pattern="[0-9]{4}-[0-9]{2}" placeholder="2026-10" required></label>
+      <label><span>Categoría</span><input name="presupuestoCategoria" [(ngModel)]="presupuesto.categoria" maxlength="60" required></label>
+      <label><span>Monto presupuestado (COP)</span><input name="presupuestoMonto" type="number" min="0" step="0.01" [(ngModel)]="presupuesto.monto_presupuestado" required></label>
+      <label><span>Notas</span><input name="presupuestoNotas" [(ngModel)]="presupuesto.notas" maxlength="255"></label>
+      <div class="form-action"><button class="button" type="submit" [disabled]="saving">Guardar presupuesto</button></div>
+    </form>
+    <div class="table-wrap" *ngIf="presupuestos.length"><table><thead><tr><th>Periodo</th><th>Categoría</th><th>Presupuestado</th><th>Notas</th></tr></thead><tbody><tr *ngFor="let row of presupuestos"><td>{{ row.periodo }}</td><td>{{ row.categoria }}</td><td>{{ row.monto_presupuestado | currency:'COP':'symbol-narrow':'1.0-0' }}</td><td>{{ row.notas || '—' }}</td></tr></tbody></table></div>
+  </section>
+
+  <section class="panel" id="informe">
+    <div class="section-title"><div><p class="eyebrow">Reportes</p><h2>Informe financiero</h2></div></div>
+    <div class="record-controls"><label><span>Desde</span><input type="date" [(ngModel)]="desde"></label><label><span>Hasta</span><input type="date" [(ngModel)]="hasta"></label><button class="button" type="button" (click)="consultarInforme()">Consultar</button></div>
+    <div class="metrics report-metrics" *ngIf="informe"><article class="metric"><span>Facturado</span><strong>{{ informe.facturado | currency:'COP':'symbol-narrow':'1.0-0' }}</strong></article><article class="metric"><span>Recaudado</span><strong>{{ informe.recaudado | currency:'COP':'symbol-narrow':'1.0-0' }}</strong></article><article class="metric"><span>Egresos</span><strong>{{ informe.egresos | currency:'COP':'symbol-narrow':'1.0-0' }}</strong></article><article class="metric"><span>Resultado</span><strong>{{ informe.resultado | currency:'COP':'symbol-narrow':'1.0-0' }}</strong></article></div>
+  </section>
+
+
+  <section class="panel" id="registros">
+    <div class="section-title"><div><p class="eyebrow">Libro auxiliar</p><h2>Registros contables</h2></div><button class="button outline" type="button" (click)="sincronizarAsientos()">Sincronizar asientos de pagos y reservas</button></div>
+    <div class="record-controls"><button class="button outline" type="button" (click)="exportarLibro('libro','xlsx')">Libro en Excel</button><button class="button outline" type="button" (click)="exportarLibro('libro','csv')">Libro en CSV</button><button class="button outline" type="button" (click)="exportarLibro('cartera','xlsx')">Cartera en Excel</button><button class="button outline" type="button" (click)="exportarLibro('balance_prueba','pdf')">Balance de prueba en PDF</button></div>
+    <div class="table-tools" *ngIf="asientos.length"><label class="search-control"><span aria-hidden="true">⌕</span><input [(ngModel)]="buscarAsientos" placeholder="Buscar número, descripción u origen" aria-label="Buscar asientos"></label><span>{{ asientosFiltrados.length }} de {{ asientos.length }} asientos</span></div>
+    <div class="table-wrap" *ngIf="asientosFiltrados.length; else noEntries"><table><thead><tr><th>Número</th><th>Fecha</th><th>Descripción</th><th>Origen</th><th>Detalle débito / crédito</th></tr></thead><tbody><tr *ngFor="let row of asientosFiltrados"><td>{{ row.numero }}</td><td>{{ row.fecha | date:'dd/MM/yyyy' }}</td><td>{{ row.descripcion }}</td><td>{{ row.origen }}</td><td><span *ngFor="let line of row.lineas">{{ line.cuenta }} · {{ line.debito | currency:'COP':'symbol-narrow':'1.0-0' }} / {{ line.credito | currency:'COP':'symbol-narrow':'1.0-0' }}; </span></td></tr></tbody></table></div><ng-template #noEntries><p class="empty">{{ buscarAsientos ? 'No se encontraron coincidencias.' : 'Aún no hay asientos en el periodo. Los pagos aprobados y los cobros de reservas facturables se causan automáticamente.' }}</p></ng-template>
+    <h3>Asiento manual balanceado</h3><form class="form-grid" (ngSubmit)="crearAsientoManual()"><label><span>Fecha</span><input name="entryDate" type="date" [(ngModel)]="asientoManual.fecha" required></label><label><span>Descripción</span><input name="entryDesc" [(ngModel)]="asientoManual.descripcion" required maxlength="255"></label><label><span>Cuenta débito</span><select name="entryDebit" [(ngModel)]="asientoManual.cuentaDebito"><option *ngFor="let account of puc" [value]="account.codigo">{{ account.codigo }} · {{ account.nombre }}</option></select></label><label><span>Cuenta crédito</span><select name="entryCredit" [(ngModel)]="asientoManual.cuentaCredito"><option *ngFor="let account of puc" [value]="account.codigo">{{ account.codigo }} · {{ account.nombre }}</option></select></label><label><span>Valor COP</span><input name="entryAmount" type="number" min="0.01" step="0.01" [(ngModel)]="asientoManual.monto" required></label><div class="form-action"><button class="button" type="submit">Guardar asiento</button></div></form>
+  </section>
+
+  <section class="panel" id="estados">
+    <div class="section-title"><div><p class="eyebrow">Cierre contable</p><h2>Estados financieros</h2></div><button class="button outline" type="button" (click)="exportarLibro('balance_prueba','xlsx')">Exportar balance de prueba</button></div>
+    <div class="metrics" *ngIf="estadoFinanciero"><article class="metric"><span>Activos</span><strong>{{ estadoFinanciero.activos | currency:'COP':'symbol-narrow':'1.0-0' }}</strong></article><article class="metric"><span>Pasivos</span><strong>{{ estadoFinanciero.pasivos | currency:'COP':'symbol-narrow':'1.0-0' }}</strong></article><article class="metric"><span>Ingresos</span><strong>{{ estadoFinanciero.ingresos | currency:'COP':'symbol-narrow':'1.0-0' }}</strong></article><article class="metric"><span>Gastos</span><strong>{{ estadoFinanciero.gastos | currency:'COP':'symbol-narrow':'1.0-0' }}</strong></article></div>
+    <div class="table-wrap" *ngIf="estadoFinanciero?.balance_prueba?.length"><table><thead><tr><th>Cuenta PUC</th><th>Nombre</th><th>Clase</th><th>Débito</th><th>Crédito</th></tr></thead><tbody><tr *ngFor="let row of estadoFinanciero.balance_prueba"><td>{{ row.codigo }}</td><td>{{ row.cuenta }}</td><td>{{ row.clase }}</td><td>{{ row.debito | currency:'COP':'symbol-narrow':'1.0-0' }}</td><td>{{ row.credito | currency:'COP':'symbol-narrow':'1.0-0' }}</td></tr></tbody></table></div>
+  </section>
+
+  <section class="panel" id="certificacion"><div class="section-title"><div><p class="eyebrow">Certificación del documento</p><h2>Certificación contable</h2><p>Genera un documento imprimible para revisión y firma del contador responsable.</p></div><button class="button" type="button" (click)="abrirCertificacion()">Generar borrador</button></div><p class="alert">El documento generado es un borrador informativo; requiere verificación y firma profesional para tener validez como certificación.</p></section>
+
+  <section class="panel" id="cartera-lote"><div class="section-title"><div><p class="eyebrow">Recaudo mensual</p><h2>Facturación masiva en lote</h2><p>Crea las cuentas de cobro mensuales de los inmuebles del conjunto. La operación evita duplicados y causa las cuentas por cobrar.</p></div></div><form class="form-grid" (ngSubmit)="facturarLote()"><label><span>Periodo (AAAA-MM)</span><input name="batchPeriod" [(ngModel)]="lote.periodo" pattern="[0-9]{4}-[0-9]{2}" required></label><label><span>Concepto</span><input name="batchConcept" [(ngModel)]="lote.concepto" required></label><label><span>Valor por inmueble (COP)</span><input name="batchAmount" type="number" min="1" step="0.01" [(ngModel)]="lote.monto" required></label><label><span>Fecha límite</span><input name="batchDue" type="date" [(ngModel)]="lote.fecha_vencimiento" required></label><div class="form-action"><button class="button" type="submit">Generar lote del periodo</button></div></form><div class="record-controls"><button class="button outline" type="button" (click)="calcularMora()">Calcular mora configurada</button><span>Usa la tasa previamente configurada por administración; revisar vigencia legal antes del cálculo.</span></div><p><strong>Pasarela PSE:</strong> el conjunto utiliza el proveedor configurado en Pagos en línea; al recibir aprobación del proveedor se concilia el pago y se causa el asiento. La tasa de mora se administra en configuración de cartera.</p></section>
+
+  <section class="panel" id="presupuesto"><div class="section-title"><div><p class="eyebrow">Ejecución presupuestal</p><h2>Presupuesto y gasto real</h2></div></div><div class="record-controls"><label><span>Periodo</span><input type="month" [(ngModel)]="periodoTrabajo"></label><button class="button" type="button" (click)="consultarEjecucion()">Consultar ejecución</button></div><div class="table-wrap" *ngIf="ejecucion.length"><table><thead><tr><th>Categoría</th><th>Presupuestado</th><th>Ejecutado</th><th>Disponible</th><th>% ejecución</th></tr></thead><tbody><tr *ngFor="let row of ejecucion"><td>{{ row.categoria }}</td><td>{{ row.presupuestado | currency:'COP':'symbol-narrow':'1.0-0' }}</td><td>{{ row.ejecutado | currency:'COP':'symbol-narrow':'1.0-0' }}</td><td>{{ row.disponible | currency:'COP':'symbol-narrow':'1.0-0' }}</td><td>{{ row.porcentaje_ejecucion }}%</td></tr></tbody></table></div></section>
+
+  <section class="panel" id="puc"><div class="section-title"><div><p class="eyebrow">Plan de cuentas PUC</p><h2>Catálogo contable colombiano</h2><p>Catálogo base ampliable, sujeto a validación de las políticas contables del conjunto.</p></div></div><form class="form-grid" (ngSubmit)="crearCuentaPUC()"><label><span>Código PUC</span><input name="pucCode" [(ngModel)]="cuentaPUC.codigo" pattern="[0-9]{2,8}" required></label><label><span>Nombre</span><input name="pucName" [(ngModel)]="cuentaPUC.nombre" required></label><label><span>Clase</span><select name="pucClass" [(ngModel)]="cuentaPUC.clase"><option value="activo">Activo</option><option value="pasivo">Pasivo</option><option value="patrimonio">Patrimonio</option><option value="ingreso">Ingreso</option><option value="gasto">Gasto</option></select></label><label><span>Naturaleza</span><select name="pucNature" [(ngModel)]="cuentaPUC.naturaleza"><option value="debito">Débito</option><option value="credito">Crédito</option></select></label><div class="form-action"><button class="button" type="submit">Agregar cuenta</button></div></form><div class="table-wrap"><table><thead><tr><th>Código</th><th>Cuenta</th><th>Clase</th><th>Naturaleza</th><th>Estado</th></tr></thead><tbody><tr *ngFor="let row of puc"><td>{{ row.codigo }}</td><td>{{ row.nombre }}</td><td>{{ row.clase }}</td><td>{{ row.naturaleza }}</td><td>{{ row.activa ? 'Activa' : 'Inactiva' }}</td></tr></tbody></table></div></section>
+
+  <section class="panel" id="proveedores"><div class="section-title"><div><p class="eyebrow">Proveedores</p><h2>Cuentas por pagar</h2></div></div><form class="form-grid" (ngSubmit)="crearCuentaPagar()"><label><span>Proveedor</span><input name="vendor" [(ngModel)]="proveedorFactura.proveedor" required></label><label><span>N.º documento</span><input name="vendorDoc" [(ngModel)]="proveedorFactura.documento" required></label><label><span>Concepto</span><input name="vendorConcept" [(ngModel)]="proveedorFactura.concepto" required></label><label><span>Fecha factura</span><input name="vendorDate" type="date" [(ngModel)]="proveedorFactura.fecha_documento" required></label><label><span>Vencimiento</span><input name="vendorDue" type="date" [(ngModel)]="proveedorFactura.fecha_vencimiento" required></label><label><span>Valor COP</span><input name="vendorAmount" type="number" min="0.01" step="0.01" [(ngModel)]="proveedorFactura.monto" required></label><div class="form-action"><button class="button" type="submit">Registrar factura</button></div></form><div class="table-wrap" *ngIf="cuentasPagar.length"><table><thead><tr><th>Proveedor</th><th>Documento</th><th>Concepto</th><th>Vence</th><th>Valor</th><th>Estado</th><th></th></tr></thead><tbody><tr *ngFor="let row of cuentasPagar"><td>{{ row.proveedor }}</td><td>{{ row.documento }}</td><td>{{ row.concepto }}</td><td>{{ row.fecha_vencimiento | date:'dd/MM/yyyy' }}</td><td>{{ row.monto | currency:'COP':'symbol-narrow':'1.0-0' }}</td><td>{{ row.estado }}</td><td><button *ngIf="row.estado === 'pendiente'" class="button tiny" type="button" (click)="pagarProveedor(row)">Registrar pago</button></td></tr></tbody></table></div></section>
+
+  <section class="panel" id="fondos"><div class="section-title"><div><p class="eyebrow">Fondo de imprevistos</p><h2>Fondos de reserva</h2><p>El traslado automático se propone desde la base presupuestal; el porcentaje legal mínimo se configura desde 1 %.</p></div></div><div class="record-controls"><label><span>Periodo</span><input type="month" [(ngModel)]="periodoTrabajo"></label><label><span>Base aprobada para el cálculo (COP)</span><input type="number" min="1" [(ngModel)]="baseFondo"></label></div><div class="table-wrap"><table><thead><tr><th>Fondo</th><th>Porcentaje</th><th>Saldo registrado</th><th>Acción</th></tr></thead><tbody><tr *ngFor="let row of fondos"><td>{{ row.nombre }}</td><td>{{ row.porcentaje }}%</td><td>{{ row.saldo | currency:'COP':'symbol-narrow':'1.0-0' }}</td><td><button class="button tiny" type="button" (click)="causarFondo(row)">Causar traslado del periodo</button></td></tr></tbody></table></div></section>
+
+  <section class="panel" id="documentos"><div class="section-title"><div><p class="eyebrow">Soportes y certificación</p><h2>Registro de documentos</h2></div></div><form class="form-grid" (ngSubmit)="registrarDocumento()"><label><span>Tipo de documento</span><select name="docType" [(ngModel)]="documentoContable.tipo"><option value="soporte_gasto">Soporte de gasto</option><option value="factura_compra">Factura de compra</option><option value="factura_venta">Factura de venta</option><option value="documento_equivalente">Documento equivalente</option><option value="certificacion">Certificación</option></select></label><label><span>Número</span><input name="docNumber" [(ngModel)]="documentoContable.numero" required></label><label><span>Fecha</span><input name="docDate" type="date" [(ngModel)]="documentoContable.fecha" required></label><label><span>Tercero</span><input name="docParty" [(ngModel)]="documentoContable.tercero"></label><label><span>Descripción</span><input name="docDescription" [(ngModel)]="documentoContable.descripcion" required></label><label><span>Valor COP</span><input name="docValue" type="number" min="0" step="0.01" [(ngModel)]="documentoContable.valor"></label><div class="form-action"><button class="button" type="submit">Registrar documento</button></div></form><div class="table-wrap" *ngIf="documentos.length"><table><thead><tr><th>Fecha</th><th>Tipo</th><th>Número</th><th>Tercero</th><th>Descripción</th><th>Valor</th></tr></thead><tbody><tr *ngFor="let row of documentos"><td>{{ row.fecha | date:'dd/MM/yyyy' }}</td><td>{{ row.tipo }}</td><td>{{ row.numero }}</td><td>{{ row.tercero || '—' }}</td><td>{{ row.descripcion }}</td><td>{{ row.valor | currency:'COP':'symbol-narrow':'1.0-0' }}</td></tr></tbody></table></div></section>
+
+  <section class="panel" id="tributario"><div class="section-title"><div><p class="eyebrow">Colombia · DIAN</p><h2>Obligaciones tributarias y facturación electrónica</h2></div></div><p class="alert" *ngIf="estadoTributario">{{ estadoTributario.mensaje }}</p><p>Se dispone del registro documental y resumen tributario; la emisión o recepción real ante DIAN queda desactivada hasta configurar resolución, firma/certificado digital y proveedor tecnológico habilitado.</p></section>
+
+  <section class="panel" id="auditoria"><div class="section-title"><div><p class="eyebrow">Control de acceso y cierre</p><h2>Pistas de auditoría</h2><p>La API restringe el contador a conjuntos asignados y bloquea los módulos generales de administración.</p></div></div><div class="table-wrap" *ngIf="auditoria.length; else noAudit"><table><thead><tr><th>Fecha y hora</th><th>Usuario</th><th>Acción</th><th>Ruta</th><th>Resultado</th></tr></thead><tbody><tr *ngFor="let row of auditoria"><td>{{ row.fecha_hora | date:'dd/MM/yyyy HH:mm:ss' }}</td><td>{{ row.usuario || '—' }}</td><td>{{ row.accion }}</td><td>{{ row.ruta }}</td><td>{{ row.codigo_http }}</td></tr></tbody></table></div><ng-template #noAudit><p class="empty">Los cambios financieros se registran en la bitácora de auditoría del sistema.</p></ng-template></section>
+</main>

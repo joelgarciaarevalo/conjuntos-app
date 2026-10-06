@@ -34,5 +34,55 @@
       </mat-card-actions>
     </mat-card>
 
+    <mat-card class="opcion-card" routerLink="/residente/qr">
+      <mat-card-content>
+        <mat-icon class="card-icon">qr_code_2</mat-icon>
+        <h2>Mi QR</h2>
+        <p>Consulta tu código residente y crea invitaciones con vigencia e ingresos limitados</p>
+      </mat-card-content>
+      <mat-card-actions><button mat-raised-button color="primary">Mis accesos</button></mat-card-actions>
+    </mat-card>
+
+    <mat-card class="opcion-card" routerLink="/residente/comunidad">
+      <mat-card-content>
+        <mat-icon class="card-icon">campaign</mat-icon>
+        <h2>Comunidad</h2>
+        <p>Comunicados, notificaciones, cuotas de administración y paquetes recibidos</p>
+      </mat-card-content>
+      <mat-card-actions><button mat-raised-button color="accent">Ver novedades</button></mat-card-actions>
+    </mat-card>
+
+    <mat-card class="opcion-card" routerLink="/residente/servicios">
+      <mat-card-content>
+        <mat-icon class="card-icon">support_agent</mat-icon>
+        <h2>Servicios y seguridad</h2>
+        <p>Cuotas, comprobantes, incidentes, contactos y notificaciones</p>
+      </mat-card-content>
+      <mat-card-actions><button mat-raised-button color="primary">Abrir servicios</button></mat-card-actions>
+    </mat-card>
+
+    <mat-card class="opcion-card" routerLink="/residente/comunidad">
+      <mat-card-content>
+        <mat-icon class="card-icon">local_parking</mat-icon>
+        <h2>Mi parqueadero</h2>
+        <p *ngIf="cargandoParqueaderos">Consultando asignación…</p>
+        <ng-container *ngIf="!cargandoParqueaderos">
+          <p *ngIf="!parqueaderos.length">No tienes un parqueadero asignado. Consulta con la administración.</p>
+          <p *ngFor="let p of parqueaderos">{{p.identificador}} · {{p.tipo}} · {{p.placa || 'sin placa'}} · {{(p.tarifa_mensual || 0) > 0 ? ('$' + p.tarifa_mensual + ' al mes') : 'sin tarifa mensual configurada'}}</p>
+          <small>Los cobros generados por administración aparecen en Comunidad → Cuotas.</small>
+        </ng-container>
+      </mat-card-content>
+      <mat-card-actions><button mat-raised-button color="primary">Ver cuotas y detalles</button></mat-card-actions>
+    </mat-card>
+
+    <mat-card class="opcion-card" routerLink="/residente/modulos">
+      <mat-card-content>
+        <mat-icon class="card-icon">rocket_launch</mat-icon>
+        <h2>Módulos 3.0</h2>
+        <p>Paga en línea, autoriza visitas, reserva con reglas avanzadas, recibe avisos y gestiona tus datos</p>
+      </mat-card-content>
+      <mat-card-actions><button mat-raised-button color="accent">Abrir módulos</button></mat-card-actions>
+    </mat-card>
+
   </div>
 </div>

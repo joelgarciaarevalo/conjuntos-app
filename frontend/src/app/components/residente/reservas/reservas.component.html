@@ -1,107 +1,135 @@
 <mat-toolbar color="primary">
-  <button mat-icon-button (click)="volver()">
+  <button mat-icon-button (click)="volver()" title="Volver">
     <mat-icon>arrow_back</mat-icon>
   </button>
-  <span>📅 Mis Reservas</span>
+  <img src="assets/iris-mark.svg" alt="" class="toolbar-mark" />
+  <span>Mis reservas</span>
   <span class="spacer"></span>
   <button mat-icon-button (click)="cerrarSesion()" title="Cerrar sesión">
     <mat-icon>logout</mat-icon>
   </button>
 </mat-toolbar>
 
-<div class="container">
+<div class="page-wrap">
 
-  <!-- Formulario de nueva reserva -->
-  <mat-card class="form-card">
-    <mat-card-header>
-      <mat-card-title>Nueva Reserva</mat-card-title>
-    </mat-card-header>
-    <mat-card-content>
-      <form [formGroup]="form" (ngSubmit)="crearReserva()">
+  <header class="page-head">
+    <h1>Reserva una zona común</h1>
+    <p>Elige la zona, tu inmueble y el horario. Te mostraremos aquí el estado de cada solicitud.</p>
+  </header>
 
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Zona Común</mat-label>
-          <mat-select formControlName="zona_id">
-            <mat-option *ngFor="let zona of zonas" [value]="zona.id">
-              {{ zona.nombre }}
-            </mat-option>
-          </mat-select>
-          <mat-error>Selecciona una zona</mat-error>
-        </mat-form-field>
+  <section class="panel">
+    <h2 class="panel__title">Nueva reserva</h2>
+    <p class="panel__sub">Todos los campos son obligatorios.</p>
 
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Inmueble</mat-label>
-          <mat-select formControlName="inmueble_id">
-            <mat-option *ngFor="let inmueble of inmuebles" [value]="inmueble.id">
-              Torre {{ inmueble.torre }} - Apto {{ inmueble.numero }}
-            </mat-option>
-          </mat-select>
-          <mat-error>Selecciona un inmueble</mat-error>
-        </mat-form-field>
+    <form [formGroup]="form" (ngSubmit)="crearReserva()" class="form-grid">
 
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Fecha y hora de inicio</mat-label>
-          <input matInput type="datetime-local" formControlName="fecha_inicio">
-          <mat-error>La fecha de inicio es obligatoria</mat-error>
-        </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Zona común</mat-label>
+        <mat-select formControlName="zona_id" (selectionChange)="cargarDisponibilidad()">
+          <mat-option *ngFor="let zona of zonas" [value]="zona.id">
+            {{ zona.nombre }} · {{ zona.hora_apertura }}–{{ zona.hora_cierre }}
+          </mat-option>
+        </mat-select>
+        <mat-error>Selecciona una zona</mat-error>
+      </mat-form-field>
 
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Fecha y hora de fin</mat-label>
-          <input matInput type="datetime-local" formControlName="fecha_fin">
-          <mat-error>La fecha de fin es obligatoria</mat-error>
-        </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Inmueble</mat-label>
+        <mat-select formControlName="inmueble_id">
+          <mat-option *ngFor="let inmueble of inmuebles" [value]="inmueble.id">
+            Torre {{ inmueble.torre }} - Apto {{ inmueble.numero }}
+          </mat-option>
+        </mat-select>
+        <mat-error>Selecciona un inmueble</mat-error>
+      </mat-form-field>
 
-        <button
-          mat-raised-button
-          color="primary"
-          type="submit"
-          [disabled]="form.invalid || cargando">
-          {{ cargando ? 'Creando...' : 'Crear Reserva' }}
+      <mat-form-field appearance="outline">
+        <mat-label>Fecha y hora de inicio</mat-label>
+        <input matInput type="datetime-local" formControlName="fecha_inicio" [attr.min]="minFecha">
+        <mat-error>La fecha de inicio es obligatoria</mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Fecha y hora de fin</mat-label>
+        <input matInput type="datetime-local" formControlName="fecha_fin" [attr.min]="form.value.fecha_inicio || minFecha">
+        <mat-error>La fecha de fin es obligatoria</mat-error>
+      </mat-form-field>
+
+      <div class="form-actions">
+        <button mat-raised-button color="primary" type="submit" class="btn-submit" [disabled]="form.invalid || cargando">
+          {{ cargando ? 'Creando...' : 'Crear reserva' }}
         </button>
-
-      </form>
-    </mat-card-content>
-  </mat-card>
-
-  <!-- Lista de reservas -->
-  <mat-card class="tabla-card">
-    <mat-card-header>
-      <mat-card-title>Mis Reservas</mat-card-title>
-    </mat-card-header>
-    <mat-card-content>
-      <div *ngIf="reservas.length === 0" class="sin-datos">
-        No tienes reservas aún
       </div>
-      <table mat-table [dataSource]="reservas" *ngIf="reservas.length > 0" class="full-width">
+
+    </form>
+    <div class="zone-rules" *ngIf="zonaActual() as zona">
+      <strong>{{ zona.hora_apertura }}–{{ zona.hora_cierre }} · duración máxima {{ zona.duracion_max_minutos }} min</strong>
+      <span>{{ zona.requiere_aprobacion ? 'La administración debe aprobar la solicitud.' : 'Esta zona se aprueba automáticamente.' }}</span>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel__head"><div><h2 class="panel__title">Disponibilidad de los próximos 7 días</h2><p class="panel__sub">{{ zonaActual()?.nombre || 'Selecciona una zona' }}</p></div></div>
+    <div *ngIf="disponibilidad.length === 0" class="empty"><mat-icon>event_available</mat-icon><strong>Sin reservas en el periodo</strong><span>La agenda está libre para los próximos siete días.</span></div>
+    <div class="table-scroll" *ngIf="disponibilidad.length > 0"><table mat-table [dataSource]="disponibilidad" class="full-width">
+      <ng-container matColumnDef="inicio"><th mat-header-cell *matHeaderCellDef>Inicio</th><td mat-cell *matCellDef="let r">{{r.fecha_inicio | date:'dd/MM/yyyy HH:mm'}}</td></ng-container>
+      <ng-container matColumnDef="fin"><th mat-header-cell *matHeaderCellDef>Fin</th><td mat-cell *matCellDef="let r">{{r.fecha_fin | date:'dd/MM/yyyy HH:mm'}}</td></ng-container>
+      <ng-container matColumnDef="estado"><th mat-header-cell *matHeaderCellDef>Estado</th><td mat-cell *matCellDef="let r">{{r.estado | titlecase}}</td></ng-container>
+      <tr mat-header-row *matHeaderRowDef="['inicio','fin','estado']"></tr><tr mat-row *matRowDef="let row; columns: ['inicio','fin','estado'];"></tr>
+    </table></div>
+  </section>
+
+  <section class="panel">
+    <div class="panel__head">
+      <h2 class="panel__title">Historial de reservas</h2>
+    </div>
+
+    <div *ngIf="reservas.length === 0" class="empty">
+      <mat-icon>event</mat-icon>
+      <strong>Aún no tienes reservas</strong>
+      <span>Crea la primera con el formulario de arriba.</span>
+    </div>
+
+    <div class="table-scroll" *ngIf="reservas.length > 0">
+      <table mat-table [dataSource]="reservas" class="full-width">
 
         <ng-container matColumnDef="zona">
           <th mat-header-cell *matHeaderCellDef>Zona</th>
-          <td mat-cell *matCellDef="let r">Zona #{{ r.zona_id }}</td>
+          <td mat-cell *matCellDef="let r"><span class="cell-main">{{ nombreZona(r.zona_id) }}</span></td>
         </ng-container>
 
         <ng-container matColumnDef="fecha_inicio">
           <th mat-header-cell *matHeaderCellDef>Inicio</th>
-          <td mat-cell *matCellDef="let r">{{ r.fecha_inicio | date:'dd/MM/yyyy HH:mm' }}</td>
+          <td mat-cell *matCellDef="let r">
+            <span class="cell-main">{{ r.fecha_inicio | date:'dd/MM/yyyy' }}</span>
+            <span class="cell-sub">{{ r.fecha_inicio | date:'HH:mm' }}</span>
+          </td>
         </ng-container>
 
         <ng-container matColumnDef="fecha_fin">
           <th mat-header-cell *matHeaderCellDef>Fin</th>
-          <td mat-cell *matCellDef="let r">{{ r.fecha_fin | date:'dd/MM/yyyy HH:mm' }}</td>
+          <td mat-cell *matCellDef="let r">
+            <span class="cell-main">{{ r.fecha_fin | date:'dd/MM/yyyy' }}</span>
+            <span class="cell-sub">{{ r.fecha_fin | date:'HH:mm' }}</span>
+          </td>
         </ng-container>
 
         <ng-container matColumnDef="estado">
           <th mat-header-cell *matHeaderCellDef>Estado</th>
           <td mat-cell *matCellDef="let r">
-            <mat-chip [color]="getColorEstado(r.estado)" selected>
-              {{ r.estado }}
-            </mat-chip>
+            <span class="pill pill--{{ r.estado }}">{{ r.estado | titlecase }}</span>
           </td>
+        </ng-container>
+
+        <ng-container matColumnDef="acciones">
+          <th mat-header-cell *matHeaderCellDef>Acciones</th>
+          <td mat-cell *matCellDef="let r"><button mat-stroked-button color="warn" *ngIf="r.estado === 'pendiente' || r.estado === 'aprobada'" (click)="cancelar(r)">Cancelar</button></td>
         </ng-container>
 
         <tr mat-header-row *matHeaderRowDef="columnas"></tr>
         <tr mat-row *matRowDef="let row; columns: columnas;"></tr>
       </table>
-    </mat-card-content>
-  </mat-card>
+    </div>
+  </section>
 
 </div>

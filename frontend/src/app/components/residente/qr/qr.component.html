@@ -1,0 +1,20 @@
+<header class="bar"><button (click)="back()">‹ Volver</button><b>Mi QR · IRIS</b><button (click)="logout()">Salir</button></header>
+<main class="wrap">
+  <h1>Acceso de residentes y visitas</h1><p class="muted">Crea tu QR personal y comparte invitaciones temporales con fecha de vencimiento y límite de ingresos.</p>
+  <p class="error" *ngIf="error">{{error}}</p>
+  <section class="card">
+    <h2>Mi QR de residente</h2>
+    <label>Inmueble<select [(ngModel)]="inmuebleId"><option *ngFor="let i of inmuebles" [ngValue]="i.id">{{i.torre ? 'Torre '+i.torre+' · ' : ''}}Apto {{i.numero}}</option></select></label>
+    <button class="primary" (click)="generarMiQr()" [disabled]="busy || !inmuebleId">{{busy ? 'Procesando…' : 'Crear / mostrar mi QR'}}</button>
+  </section>
+  <section class="card">
+    <h2>Invitar a una visita</h2>
+    <div class="grid"><label>Nombre del visitante<input [(ngModel)]="nombre" maxlength="100" required></label><label>Documento (opcional)<input [(ngModel)]="documento" maxlength="30"></label>
+      <label>Vigencia<select [(ngModel)]="horas"><option [ngValue]="2">2 horas</option><option [ngValue]="8">8 horas</option><option [ngValue]="24">24 horas</option><option [ngValue]="72">3 días</option><option [ngValue]="168">7 días</option></select></label>
+      <label>Número máximo de ingresos<input type="number" min="1" max="100" [(ngModel)]="usos"></label></div>
+    <button class="primary" (click)="crearVisita()" [disabled]="busy || !nombre.trim() || !inmuebleId">Generar QR de visita</button>
+  </section>
+  <section class="card"><h2>Mis códigos</h2><p *ngIf="!codigos.length" class="muted">Todavía no tienes códigos. Crea uno arriba.</p>
+    <article class="qr" *ngFor="let q of codigos"><img [src]="images[q.id]" [alt]="etiqueta(q)"><div class="info"><span class="badge" [class.off]="q.estado !== 'activo'">{{q.estado}}</span><h3>{{etiqueta(q)}}</h3><p>{{q.inmueble_etiqueta || 'Inmueble'}}</p><p>Válido: {{q.valido_desde | date:'dd/MM/yyyy HH:mm'}} — {{q.valido_hasta ? (q.valido_hasta | date:'dd/MM/yyyy HH:mm') : 'sin vencimiento'}}</p><p>Ingresos: {{q.usos_actuales}} / {{q.usos_maximos ?? 'sin límite'}}</p><code>IRIS-QR:{{q.token}}</code><div class="actions"><button (click)="download(q)">Descargar PNG</button><button class="danger" *ngIf="q.activo" (click)="revoke(q)">Revocar</button></div></div></article>
+  </section>
+</main>

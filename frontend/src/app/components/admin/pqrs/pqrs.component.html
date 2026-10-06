@@ -1,80 +1,108 @@
 <mat-toolbar color="primary">
-  <button mat-icon-button (click)="volver()">
+  <button mat-icon-button (click)="volver()" title="Volver">
     <mat-icon>arrow_back</mat-icon>
   </button>
-  <span>📝 Gestión de PQRS</span>
+  <img src="assets/iris-mark.svg" alt="" class="toolbar-mark" />
+  <span>Gestión de PQRS</span>
   <span class="spacer"></span>
   <button mat-icon-button (click)="cerrarSesion()" title="Cerrar sesión">
     <mat-icon>logout</mat-icon>
   </button>
 </mat-toolbar>
 
-<div class="container">
-  <mat-card>
-    <mat-card-header>
-      <mat-card-title>Todas las PQRS</mat-card-title>
-    </mat-card-header>
-    <mat-card-content>
+<div class="page-wrap">
 
-      <div *ngIf="pqrsList.length === 0" class="sin-datos">
-        No hay PQRS registradas
-      </div>
+  <header class="page-head">
+    <h1>Peticiones, quejas, reclamos y sugerencias</h1>
+    <p>Responde a los residentes y actualiza el estado de cada solicitud.</p>
+  </header>
 
-      <mat-accordion *ngIf="pqrsList.length > 0">
-        <mat-expansion-panel *ngFor="let pqrs of pqrsList">
-          <mat-expansion-panel-header>
-            <mat-panel-title>
-              {{ pqrs.tipo | titlecase }} #{{ pqrs.id }} — Inmueble #{{ pqrs.inmueble_id }}
-            </mat-panel-title>
-            <mat-panel-description>
-              <mat-chip [color]="getColorEstado(pqrs.estado)" selected>
-                {{ pqrs.estado }}
-              </mat-chip>
-            </mat-panel-description>
-          </mat-expansion-panel-header>
+  <div class="stats" role="group" aria-label="Filtrar por estado">
+    <button type="button" class="stat" [class.is-active]="filtro === 'todas'" (click)="setFiltro('todas')">
+      <span class="stat__n">{{ pqrsList.length }}</span>
+      <span class="stat__l">Todas</span>
+    </button>
+    <button type="button" class="stat stat--amber" [class.is-active]="filtro === 'radicado'" (click)="setFiltro('radicado')">
+      <span class="stat__n">{{ conteo('radicado') }}</span>
+      <span class="stat__l">Sin atender</span>
+    </button>
+    <button type="button" class="stat" [class.is-active]="filtro === 'en_proceso'" (click)="setFiltro('en_proceso')">
+      <span class="stat__n">{{ conteo('en_proceso') }}</span>
+      <span class="stat__l">En proceso</span>
+    </button>
+    <button type="button" class="stat stat--mint" [class.is-active]="filtro === 'resuelto'" (click)="setFiltro('resuelto')">
+      <span class="stat__n">{{ conteo('resuelto') }}</span>
+      <span class="stat__l">Resueltas</span>
+    </button>
+  </div>
 
-          <div class="detalle">
-            <p><strong>Descripción:</strong> {{ pqrs.descripcion }}</p>
-            <p><strong>Fecha:</strong> {{ pqrs.fecha_radicacion | date:'dd/MM/yyyy HH:mm' }}</p>
+  <section class="panel">
+    <div class="panel__head">
+      <h2 class="panel__title">Solicitudes</h2>
+    </div>
 
-            <div *ngIf="pqrs.respuesta_admin" class="respuesta-existente">
-              <strong>Respuesta enviada:</strong>
-              <p>{{ pqrs.respuesta_admin }}</p>
+    <div *ngIf="pqrsFiltradas.length === 0" class="empty">
+      <mat-icon>inbox</mat-icon>
+      <strong>{{ pqrsList.length === 0 ? 'No hay PQRS registradas' : 'Sin resultados en este filtro' }}</strong>
+      <span>{{ pqrsList.length === 0 ? 'Las solicitudes de los residentes aparecerán aquí.' : 'Prueba con otro estado.' }}</span>
+    </div>
+
+    <mat-accordion *ngIf="pqrsFiltradas.length > 0">
+      <mat-expansion-panel *ngFor="let pqrs of pqrsFiltradas">
+        <mat-expansion-panel-header>
+          <mat-panel-title>
+            <div class="pqrs-row">
+              <span class="pqrs-ico"><mat-icon>{{ icono(pqrs.tipo) }}</mat-icon></span>
+              <div class="pqrs-meta">
+                <strong>{{ etiquetaTipo(pqrs.tipo) }} #{{ pqrs.id }} · Inmueble #{{ pqrs.inmueble_id }}</strong>
+                <span>{{ pqrs.fecha_radicacion | date:'dd/MM/yyyy HH:mm' }}</span>
+              </div>
+              <span class="pill pill--{{ pqrs.estado }}">{{ etiquetaEstado(pqrs.estado) }}</span>
             </div>
+          </mat-panel-title>
+        </mat-expansion-panel-header>
 
-            <!-- Formulario de respuesta -->
-            <div class="form-respuesta" [formGroup]="formularios[pqrs.id]">
-              <p><strong>{{ pqrs.respuesta_admin ? 'Actualizar respuesta:' : 'Responder:' }}</strong></p>
+        <div class="bloque">
+          <span class="bloque__label">Mensaje del residente</span>
+          <p>{{ pqrs.descripcion }}</p>
+        </div>
 
-              <mat-form-field appearance="outline" class="full-width">
-                <mat-label>Respuesta</mat-label>
-                <textarea matInput formControlName="respuesta_admin" rows="3"
-                  placeholder="Escribe tu respuesta aquí...">
-                </textarea>
-              </mat-form-field>
+        <div *ngIf="pqrs.respuesta_admin" class="respuesta">
+          <span class="bloque__label"><mat-icon>support_agent</mat-icon> Respuesta enviada</span>
+          <p>{{ pqrs.respuesta_admin }}</p>
+        </div>
 
-              <mat-form-field appearance="outline">
-                <mat-label>Cambiar estado</mat-label>
-                <mat-select formControlName="estado">
-                  <mat-option value="en_proceso">En proceso</mat-option>
-                  <mat-option value="resuelto">Resuelto</mat-option>
-                </mat-select>
-              </mat-form-field>
+        <div class="form-respuesta" [formGroup]="formularios[pqrs.id]">
+          <h3>{{ pqrs.respuesta_admin ? 'Actualizar respuesta' : 'Responder' }}</h3>
 
-              <br>
-              <button
-                mat-raised-button
-                color="primary"
-                (click)="responder(pqrs.id)"
-                [disabled]="formularios[pqrs.id].invalid">
-                {{ pqrs.respuesta_admin ? 'Actualizar respuesta' : 'Enviar respuesta' }}
-              </button>
-            </div>
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Respuesta</mat-label>
+            <textarea matInput formControlName="respuesta_admin" rows="4"
+              placeholder="Escribe tu respuesta aquí; no hay límite de longitud"></textarea>
+            <mat-hint align="end">{{ formularios[pqrs.id].get('respuesta_admin')?.value?.length || 0 }} caracteres · sin límite de longitud</mat-hint>
+          </mat-form-field>
+
+          <div class="form-respuesta__fila">
+            <mat-form-field appearance="outline" class="campo-estado">
+              <mat-label>Cambiar estado</mat-label>
+              <mat-select formControlName="estado">
+                <mat-option value="en_proceso">En proceso</mat-option>
+                <mat-option value="resuelto">Resuelto</mat-option>
+              </mat-select>
+            </mat-form-field>
+
+            <button
+              mat-raised-button
+              color="primary"
+              class="btn-submit"
+              (click)="responder(pqrs.id)"
+              [disabled]="formularios[pqrs.id].invalid">
+              {{ pqrs.respuesta_admin ? 'Actualizar respuesta' : 'Enviar respuesta' }}
+            </button>
           </div>
+        </div>
 
-        </mat-expansion-panel>
-      </mat-accordion>
-
-    </mat-card-content>
-  </mat-card>
+      </mat-expansion-panel>
+    </mat-accordion>
+  </section>
 </div>

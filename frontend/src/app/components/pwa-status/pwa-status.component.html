@@ -1,0 +1,11 @@
+<aside class="pwa-bar" *ngIf="mostrar" role="status" aria-live="polite">
+  <span class="connection" [class.offline]="!online"><i aria-hidden="true"></i>{{ online ? 'Conectado' : 'Sin conexión · los datos no se sincronizan' }}</span>
+  <button *ngIf="online && installable && installPrompt" type="button" class="install" (click)="instalar()">Instalar IRIS</button>
+  <button *ngIf="online && installable && !installPrompt" type="button" class="help" (click)="instalar()">Cómo instalar</button>
+</aside>
+<section class="install-help" *ngIf="helpOpen" role="dialog" aria-labelledby="install-help-title">
+  <button class="close" type="button" (click)="cerrarAyuda()" aria-label="Cerrar">×</button>
+  <h2 id="install-help-title">Instalar IRIS en este dispositivo</h2>
+  <p>En Chrome o Edge, abre el menú del navegador y elige <b>Instalar aplicación</b> o <b>Agregar a pantalla de inicio</b>. En iPhone/iPad con Safari, usa Compartir y luego <b>Agregar a pantalla de inicio</b>.</p>
+  <p>La cámara y algunas notificaciones requieren HTTPS. Las operaciones necesitan conexión y no se guardan ni se envían automáticamente sin conexión.</p>
+</section>

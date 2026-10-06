@@ -6,6 +6,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { AuthService } from '../../../services/auth.service';
+import { ApiService } from '../../../services/api.service';
 
 @Component({
   selector: 'app-residente-dashboard',
@@ -23,10 +24,13 @@ import { AuthService } from '../../../services/auth.service';
 })
 export class DashboardComponent implements OnInit {
   nombreUsuario = '';
+  parqueaderos: any[] = [];
+  cargandoParqueaderos = true;
 
   constructor(
     private authService: AuthService,
-    private router: Router
+    private router: Router,
+    private api: ApiService
   ) {}
 
   ngOnInit(): void {
@@ -34,6 +38,10 @@ export class DashboardComponent implements OnInit {
     if (usuario) {
       this.nombreUsuario = usuario.nombre_completo;
     }
+    this.api.getParqueaderos().subscribe({
+      next: datos => { this.parqueaderos = datos || []; this.cargandoParqueaderos = false; },
+      error: () => { this.parqueaderos = []; this.cargandoParqueaderos = false; }
+    });
   }
 
   irAReservas(): void {

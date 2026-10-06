@@ -1,0 +1,1032 @@
+<main class="v3-shell" aria-labelledby="v3-title">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">IRIS 3.0 · Operación integral</p>
+      <h1 id="v3-title">Módulos avanzados</h1>
+      <p class="intro">Pagos en línea, avisos por WhatsApp o SMS, mantenimiento, visitantes, seguridad, contabilidad, asambleas, reservas avanzadas e indicadores.</p>
+    </div>
+    <div class="header-actions">
+      <span class="role-chip" *ngIf="rol">{{ rol === 'admin' ? 'Administración' : rol === 'portero' ? 'Portería' : 'Residente' }}</span>
+      <label class="otp-field">
+        <span>Código 2FA</span>
+        <input type="text" inputmode="numeric" placeholder="si aplica" [value]="otp" (input)="otp = $any($event.target).value">
+      </label>
+      <button type="button" class="button secondary" (click)="actualizar()">↻ Actualizar</button>
+      <a class="button secondary" routerLink="/auth/password">Cambiar contraseña</a>
+    </div>
+  </header>
+
+  <p class="feedback error-message" *ngIf="error" role="alert">{{ error }}</p>
+  <p class="feedback success-message" *ngIf="feedback" role="status" aria-live="polite">{{ feedback }}</p>
+
+  <div class="context-bar">
+    <label class="select-field">
+      <span>Conjunto</span>
+      <select [value]="conjuntoId" (change)="conjuntoId = +$any($event.target).value; cambiarConjunto()">
+        <option *ngFor="let conjunto of conjuntos" [value]="conjunto.id">{{ conjunto.nombre || ('Conjunto ' + conjunto.id) }}</option>
+      </select>
+    </label>
+    <nav class="tabs" aria-label="Módulos de IRIS 3.0">
+      <button type="button" *ngFor="let pestana of pestanas()" class="tab"
+              [class.active]="seccion === pestana.id" (click)="abrir(pestana.id)"
+              [attr.aria-current]="seccion === pestana.id ? 'page' : null">
+        <strong>{{ pestana.titulo }}</strong>
+        <small>{{ pestana.descripcion }}</small>
+      </button>
+    </nav>
+  </div>
+
+  <!-- ============================ INDICADORES ============================ -->
+  <section class="panel" *ngIf="seccion === 'indicadores'">
+    <div class="section-heading">
+      <div><p class="eyebrow">Panel</p><h2>Indicadores del conjunto</h2></div>
+      <div class="button-row">
+        <label class="select-field inline"><span>Desde</span><input type="date" [value]="rangoIndicadores.desde" (change)="rangoIndicadores.desde = $any($event.target).value"></label>
+        <label class="select-field inline"><span>Hasta</span><input type="date" [value]="rangoIndicadores.hasta" (change)="rangoIndicadores.hasta = $any($event.target).value"></label>
+        <button type="button" class="button" (click)="cargarPanel()">Calcular</button>
+        <button type="button" class="button secondary" (click)="exportarIndicadores()">Exportar XLSX</button>
+      </div>
+    </div>
+    <p class="loading-line" *ngIf="cargando['panel']">Calculando indicadores…</p>
+    <ng-container *ngIf="panel">
+      <div class="tiles">
+        <article class="tile"><span>Cartera vencida</span><strong>{{ panel.cartera?.total_vencido }}</strong><small>{{ panel.cartera?.indice_vencido_pct }}% del saldo</small></article>
+        <article class="tile"><span>Cuotas pendientes</span><strong>{{ panel.cartera?.cuotas_pendientes }}</strong><small>Saldo {{ panel.cartera?.total_pendiente }}</small></article>
+        <article class="tile"><span>PQRS del periodo</span><strong>{{ panel.pqrs?.total_periodo }}</strong><small>Promedio {{ panel.pqrs?.tiempo_promedio_horas ?? '—' }} h · SLA {{ panel.pqrs?.sla_cumplimiento_pct ?? '—' }}%</small></article>
+        <article class="tile"><span>Paquetes</span><strong>{{ panel.paquetes?.total_periodo }}</strong><small>{{ panel.paquetes?.pendientes }} sin retirar</small></article>
+        <article class="tile"><span>Accesos de visitantes</span><strong>{{ panel.visitantes?.accesos_periodo }}</strong><small>{{ panel.visitantes?.en_sitio }} en sitio</small></article>
+        <article class="tile"><span>Mantenimiento</span><strong>{{ panel.mantenimiento?.total_periodo }}</strong><small>{{ panel.mantenimiento?.vencidas }} vencidas</small></article>
+      </div>
+
+      <h3>Cartera por rango de mora</h3>
+      <table class="data-table">
+        <thead><tr><th>Rango</th><th>Monto</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let fila of valoresPanel(panel.cartera?.rangos)">
+            <td>{{ fila.clave }}</td><td>{{ fila.valor }}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Uso de zonas comunes</h3>
+      <table class="data-table" *ngIf="panel.uso_zonas?.length; else sinZonas">
+        <thead><tr><th>Zona</th><th>Reservas</th><th>Horas</th><th>Ocupación</th><th>Cancelaciones</th><th>Cobro</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let zona of panel.uso_zonas">
+            <td>{{ zona.zona }}</td><td>{{ zona.reservas }}</td><td>{{ zona.horas_reservadas }}</td>
+            <td>{{ zona.ocupacion_estimada_pct }}%</td><td>{{ zona.cancelacion_pct }}%</td>
+            <td>{{ zona.requiere_pago ? ('$' + zona.tarifa) : 'libre' }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <ng-template #sinZonas><p class="muted">Sin reservas registradas en el periodo.</p></ng-template>
+
+      <h3>Volumen de paquetes por mes</h3>
+      <table class="data-table" *ngIf="panel.paquetes?.por_mes && valoresPanel(panel.paquetes.por_mes).length; else sinPaquetes">
+        <thead><tr><th>Mes</th><th>Paquetes</th></tr></thead>
+        <tbody><tr *ngFor="let fila of valoresPanel(panel.paquetes.por_mes)"><td>{{ fila.clave }}</td><td>{{ fila.valor }}</td></tr></tbody>
+      </table>
+      <ng-template #sinPaquetes><p class="muted">Sin paquetes registrados en el periodo.</p></ng-template>
+      <p class="muted">Tiempo promedio de retiro: {{ panel.paquetes?.tiempo_promedio_retiro_horas ?? '—' }} h</p>
+    </ng-container>
+  </section>
+
+  <!-- ============================== PAGOS =============================== -->
+  <section class="panel" *ngIf="seccion === 'pagos'">
+    <div class="section-heading">
+      <div><p class="eyebrow">Pasarela colombiana</p><h2>Pagos en línea y conciliación automática</h2></div>
+      <span class="badge" *ngIf="pagoMetodos">Proveedor {{ pagoMetodos.proveedor }} · {{ pagoMetodos.modo }}</span>
+    </div>
+    <p class="note">IRIS nunca recibe ni almacena datos de tarjeta: el navegador tokeniza con la pasarela y aquí solo se guarda el token, la marca y los últimos cuatro dígitos.</p>
+
+    <ng-container *ngIf="esAdmin">
+      <h3>Configuración de la pasarela</h3>
+      <div class="form-grid">
+        <label><span>Proveedor</span>
+          <select [(ngModel)]="formPagoConfig.proveedor">
+            <option value="simulado">simulado (pruebas)</option>
+            <option value="wompi">Wompi (Colombia)</option>
+            <option value="epayco">ePayco</option>
+            <option value="payulatam">PayU Latam</option>
+          </select>
+        </label>
+        <label><span>Modo</span>
+          <select [(ngModel)]="formPagoConfig.modo"><option value="sandbox">sandbox</option><option value="produccion">produccion</option></select>
+        </label>
+        <label><span>Moneda</span><input [(ngModel)]="formPagoConfig.moneda" maxlength="3"></label>
+        <label><span>Llave pública</span><input [(ngModel)]="formPagoConfig.public_key" placeholder="pub_test_…"></label>
+        <label><span>Llave privada</span><input type="password" [(ngModel)]="formPagoConfig.private_key" placeholder="se guarda cifrada"></label>
+        <label><span>Secreto de eventos</span><input type="password" [(ngModel)]="formPagoConfig.events_secret" placeholder="webhook"></label>
+        <label class="checkbox"><input type="checkbox" [(ngModel)]="formPagoConfig.permite_tarjeta"> <span>Tarjetas</span></label>
+        <label class="checkbox"><input type="checkbox" [(ngModel)]="formPagoConfig.permite_pse"> <span>PSE</span></label>
+        <label class="checkbox"><input type="checkbox" [(ngModel)]="formPagoConfig.permite_nequi"> <span>Nequi</span></label>
+        <label class="checkbox"><input type="checkbox" [(ngModel)]="formPagoConfig.conciliacion_automatica"> <span>Conciliación automática</span></label>
+        <label class="checkbox"><input type="checkbox" [(ngModel)]="formPagoConfig.activo"> <span>Pasarela activa</span></label>
+      </div>
+      <div class="button-row">
+        <button type="button" class="button" (click)="guardarPagoConfig()">Guardar configuración</button>
+        <button type="button" class="button secondary" (click)="conciliarLote()">Conciliar pendientes</button>
+      </div>
+      <p class="muted" *ngIf="pagoConfig">Estado: {{ pagoConfig.configurada ? 'configurada' : 'sin llaves' }} · tokenización: {{ pagoConfig.tokenizacion || 'la del proveedor' }}</p>
+      <div class="tiles" *ngIf="pagoResumen">
+        <article class="tile"><span>Aprobadas</span><strong>{{ pagoResumen.aprobadas }}</strong><small>{{ pagoResumen.aprobadas_monto }}</small></article>
+        <article class="tile"><span>Pendientes</span><strong>{{ pagoResumen.pendientes }}</strong></article>
+        <article class="tile"><span>Declinadas</span><strong>{{ pagoResumen.declinadas }}</strong></article>
+        <article class="tile"><span>Sin conciliar</span><strong>{{ pagoResumen.sin_conciliar }}</strong></article>
+      </div>
+
+      <h3>Transacciones</h3>
+      <table class="data-table" *ngIf="pagoTransacciones.length; else sinTransacciones">
+        <thead><tr><th>#</th><th>Referencia</th><th>Monto</th><th>Método</th><th>Estado</th><th>Conciliado</th><th></th></tr></thead>
+        <tbody>
+          <tr *ngFor="let transaccion of pagoTransacciones">
+            <td>{{ transaccion.id }}</td>
+            <td>{{ transaccion.referencia }}</td>
+            <td>{{ transaccion.monto }}</td>
+            <td>{{ transaccion.metodo }}</td>
+            <td><span class="badge" [class.bad]="transaccion.estado !== 'aprobada'">{{ transaccion.estado }}</span></td>
+            <td>{{ transaccion.conciliado ? 'sí' : 'no' }}</td>
+            <td class="button-row">
+              <button type="button" class="button tiny" *ngIf="!transaccion.conciliado" (click)="conciliarTransaccion(transaccion.id)">Conciliar</button>
+              <button type="button" class="button tiny secondary" *ngIf="transaccion.estado === 'aprobada'" (click)="comprobante(transaccion.id)">Comprobante</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <ng-template #sinTransacciones><p class="muted">Todavía no hay transacciones registradas.</p></ng-template>
+
+      <h3>Webhooks recibidos</h3>
+      <table class="data-table" *ngIf="pagoEventos.length; else sinEventos">
+        <thead><tr><th>#</th><th>Proveedor</th><th>Evento</th><th>Firma</th><th>Estado</th><th>Recibido</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let evento of pagoEventos">
+            <td>{{ evento.id }}</td><td>{{ evento.proveedor }}</td><td>{{ evento.evento }}</td>
+            <td>{{ evento.firma_valida ? 'válida' : 'inválida' }}</td><td>{{ evento.estado_proveedor }}</td><td>{{ evento.creado_en | date:'dd/MM/yyyy HH:mm' }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <ng-template #sinEventos><p class="muted">Sin webhooks registrados.</p></ng-template>
+    </ng-container>
+
+    <h3>Pagar una cuota</h3>
+    <div class="form-grid" *ngIf="esResidente; else adminNota">
+      <label><span>Cuota</span>
+        <select [(ngModel)]="formCheckout.cuota_id">
+          <option *ngFor="let cuota of cuotas" [value]="cuota.id" [disabled]="cuota.estado === 'pagada'">
+            {{ cuota.concepto }} · {{ cuota.periodo }} · {{ cuota.monto }} ({{ cuota.estado }})
+          </option>
+        </select>
+      </label>
+      <label><span>Método</span>
+        <select [(ngModel)]="formCheckout.metodo">
+          <option *ngFor="let metodo of (pagoMetodos?.metodos || ['tarjeta'])" [value]="metodo">{{ metodo }}</option>
+        </select>
+      </label>
+      <label *ngIf="pagoMetodos?.modo === 'sandbox'"><span>Token de prueba</span>
+        <select [(ngModel)]="formCheckout.token">
+          <option value="tok_visa_aprobado">aprobado</option>
+          <option value="tok_visa_rechaza">rechazado</option>
+          <option value="tok_visa_pendiente">pendiente</option>
+        </select>
+      </label>
+      <label *ngIf="pagoMetodos?.modo !== 'sandbox'"><span>Token de la pasarela</span><input [(ngModel)]="formCheckout.token" placeholder="token generado en el navegador"></label>
+    </div>
+    <div class="button-row" *ngIf="esResidente">
+      <button type="button" class="button" (click)="pagarEnLinea()" [disabled]="cargando['pagoCheckout'] || cargando['pagoCobro']">
+        {{ cargando['pagoCheckout'] || cargando['pagoCobro'] ? 'Procesando…' : 'Pagar en línea' }}
+      </button>
+    </div>
+    <ng-template #adminNota><p class="muted">La administración registra los pagos desde contabilidad; los residentes pagan en línea desde esta pantalla.</p></ng-template>
+  </section>
+
+  <!-- ============================== AVISOS =============================== -->
+  <section class="panel" *ngIf="seccion === 'avisos'">
+    <div class="section-heading">
+      <div><p class="eyebrow">WhatsApp · SMS</p><h2>Avisos con consentimiento</h2></div>
+      <span class="badge">Solo se envían con consentimiento vigente</span>
+    </div>
+
+    <h3>Mis consentimientos</h3>
+    <table class="data-table" *ngIf="consentimientos.length; else sinConsentimientos">
+      <thead><tr><th>Canal</th><th>Teléfono</th><th>Estado</th><th>Otorgado</th><th></th></tr></thead>
+      <tbody>
+        <tr *ngFor="let consentimiento of consentimientos">
+          <td>{{ consentimiento.canal }}</td>
+          <td>{{ consentimiento.telefono || consentimiento.telefono_enmascarado }}</td>
+          <td><span class="badge" [class.bad]="!consentimiento.otorgado">{{ consentimiento.otorgado ? 'vigente' : 'revocado' }}</span></td>
+          <td>{{ consentimiento.otorgado_en | date:'dd/MM/yyyy' }}</td>
+          <td><button type="button" class="button tiny secondary" *ngIf="consentimiento.usuario_id === usuario?.id && consentimiento.otorgado" (click)="revocarConsentimiento(consentimiento.id)">Revocar</button></td>
+        </tr>
+      </tbody>
+    </table>
+    <ng-template #sinConsentimientos><p class="muted">Aún no has autorizado avisos por WhatsApp ni SMS.</p></ng-template>
+
+    <div class="form-grid" *ngIf="consentimientoPropio()">
+      <label><span>Canal</span><select [(ngModel)]="formConsentimiento.canal"><option value="whatsapp">WhatsApp</option><option value="sms">SMS</option></select></label>
+      <label><span>Teléfono (formato internacional)</span><input [(ngModel)]="formConsentimiento.telefono" placeholder="+573001112233"></label>
+      <label class="checkbox"><input type="checkbox" [(ngModel)]="formConsentimiento.otorgado"> <span>Autorizo recibir avisos</span></label>
+    </div>
+    <div class="button-row" *ngIf="consentimientoPropio()">
+      <button type="button" class="button" (click)="otorgarConsentimiento()">Guardar consentimiento</button>
+    </div>
+
+    <ng-container *ngIf="esAdmin">
+      <h3>Enviar aviso</h3>
+      <div class="form-grid">
+        <label><span>Evento</span>
+          <select [(ngModel)]="formAviso.evento">
+            <option *ngFor="let evento of eventosAviso" [value]="evento">{{ evento }}</option>
+          </select>
+        </label>
+        <label><span>Inmueble</span>
+          <select [(ngModel)]="formAviso.inmueble_id">
+            <option *ngFor="let inmueble of inmuebles" [value]="inmueble.id">{{ etiquetaInmueble(inmueble) }}</option>
+          </select>
+        </label>
+        <label><span>Canal (opcional)</span><select [(ngModel)]="formAviso.canal"><option value="">automático</option><option value="whatsapp">WhatsApp</option><option value="sms">SMS</option></select></label>
+        <label class="wide"><span>Mensaje</span><input [(ngModel)]="formAviso.mensaje" placeholder="Texto del aviso"></label>
+      </div>
+      <div class="button-row">
+        <button type="button" class="button" (click)="enviarAviso()">Enviar aviso</button>
+        <button type="button" class="button secondary" (click)="ejecutarVencimientos()">Avisar vencimientos</button>
+        <button type="button" class="button secondary" (click)="instalarPlantillas()">Instalar plantillas sugeridas</button>
+      </div>
+
+      <h3>Plantillas del conjunto</h3>
+      <table class="data-table" *ngIf="plantillas.length; else sinPlantillas">
+        <thead><tr><th>Evento</th><th>Título</th><th>Cuerpo</th><th>Canales</th><th></th></tr></thead>
+        <tbody>
+          <tr *ngFor="let plantilla of plantillas">
+            <td>{{ plantilla.evento }}</td>
+            <td><input [(ngModel)]="plantilla.titulo"></td>
+            <td><input [(ngModel)]="plantilla.cuerpo"></td>
+            <td><input [(ngModel)]="plantilla.canales"></td>
+            <td><button type="button" class="button tiny" (click)="guardarPlantilla(plantilla)">Guardar</button></td>
+          </tr>
+        </tbody>
+      </table>
+      <ng-template #sinPlantillas><p class="muted">Instala las plantillas sugeridas o crea las tuyas.</p></ng-template>
+
+      <h3>Bitácora de avisos</h3>
+      <table class="data-table" *ngIf="bitacora.length; else sinBitacora">
+        <thead><tr><th>Fecha</th><th>Evento</th><th>Canal</th><th>Teléfono</th><th>Estado</th><th>Detalle</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let registro of bitacora">
+            <td>{{ registro.creado_en | date:'dd/MM/yyyy HH:mm' }}</td>
+            <td>{{ registro.evento }}</td>
+            <td>{{ registro.canal }}</td>
+            <td>{{ registro.telefono_enmascarado }}</td>
+            <td><span class="badge" [class.bad]="registro.estado !== 'enviado'">{{ registro.estado }}</span></td>
+            <td>{{ registro.detalle }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <ng-template #sinBitacora><p class="muted">Sin avisos registrados todavía.</p></ng-template>
+
+      <h3>Consentimientos del conjunto</h3>
+      <div class="tiles" *ngIf="estadoConsentimientos.length">
+        <article class="tile"><span>Residentes</span><strong>{{ estadoConsentimientos[0].residentes }}</strong><small>unidades con contacto</small></article>
+        <article class="tile"><span>Con WhatsApp</span><strong>{{ estadoConsentimientos[0].con_whatsapp }}</strong></article>
+        <article class="tile"><span>Con SMS</span><strong>{{ estadoConsentimientos[0].con_sms }}</strong></article>
+        <article class="tile"><span>Sin consentimiento</span><strong>{{ estadoConsentimientos[0].sin_consentimiento }}</strong><small>no reciben avisos externos</small></article>
+      </div>
+    </ng-container>
+
+    <h3 *ngIf="!esAdmin">Mis avisos recibidos</h3>
+    <table class="data-table" *ngIf="!esAdmin && misAvisos.length; else sinMisAvisos">
+      <thead><tr><th>Fecha</th><th>Evento</th><th>Canal</th><th>Estado</th></tr></thead>
+      <tbody><tr *ngFor="let aviso of misAvisos"><td>{{ aviso.creado_en | date:'dd/MM/yyyy HH:mm' }}</td><td>{{ aviso.evento }}</td><td>{{ aviso.canal }}</td><td>{{ aviso.estado }}</td></tr></tbody>
+    </table>
+    <ng-template #sinMisAvisos><p class="muted" *ngIf="!esAdmin">Todavía no has recibido avisos externos.</p></ng-template>
+  </section>
+
+  <!-- =========================== MANTENIMIENTO =========================== -->
+  <section class="panel" *ngIf="seccion === 'mantenimiento'">
+    <div class="section-heading">
+      <div><p class="eyebrow">Responsables y proveedores</p><h2>Seguimiento de mantenimiento</h2></div>
+      <div class="button-row">
+        <button type="button" class="button secondary" (click)="exportarMantenimiento()" *ngIf="esAdmin">Exportar XLSX</button>
+      </div>
+    </div>
+    <div class="tiles" *ngIf="mantResumen">
+      <article class="tile"><span>Órdenes</span><strong>{{ mantResumen.total }}</strong></article>
+      <article class="tile"><span>Abiertas</span><strong>{{ mantResumen.abiertas }}</strong></article>
+      <article class="tile"><span>En ejecución</span><strong>{{ mantResumen.en_ejecucion }}</strong></article>
+      <article class="tile"><span>Completadas</span><strong>{{ mantResumen.completadas }}</strong></article>
+      <article class="tile"><span>Vencidas</span><strong>{{ mantResumen.vencidas }}</strong></article>
+    </div>
+
+    <ng-container *ngIf="esAdmin">
+      <h3>Proveedores</h3>
+      <div class="form-grid">
+        <label><span>Nombre</span><input [(ngModel)]="formProveedor.nombre"></label>
+        <label><span>NIT</span><input [(ngModel)]="formProveedor.nit"></label>
+        <label><span>Especialidad</span><input [(ngModel)]="formProveedor.especialidad"></label>
+        <label><span>Teléfono</span><input [(ngModel)]="formProveedor.telefono"></label>
+        <label><span>Calificación (1-5)</span><input type="number" min="1" max="5" [(ngModel)]="formProveedor.calificacion"></label>
+      </div>
+      <div class="button-row"><button type="button" class="button" (click)="crearProveedor()">Registrar proveedor</button></div>
+      <table class="data-table" *ngIf="proveedores.length">
+        <thead><tr><th>Proveedor</th><th>Especialidad</th><th>Contacto</th><th>Calificación</th><th>Estado</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let proveedor of proveedores">
+            <td>{{ proveedor.nombre }}</td><td>{{ proveedor.especialidad || '—' }}</td>
+            <td>{{ proveedor.contacto || proveedor.telefono || '—' }}</td>
+            <td>{{ proveedor.calificacion || '—' }}</td>
+            <td>{{ proveedor.activo ? 'activo' : 'inactivo' }}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Nueva orden</h3>
+      <div class="form-grid">
+        <label><span>Título</span><input [(ngModel)]="formOrden.titulo"></label>
+        <label><span>Prioridad</span><select [(ngModel)]="formOrden.prioridad"><option value="baja">baja</option><option value="media">media</option><option value="alta">alta</option><option value="urgente">urgente</option></select></label>
+        <label><span>Inmueble</span><select [(ngModel)]="formOrden.inmueble_id"><option *ngFor="let inmueble of inmuebles" [value]="inmueble.id">{{ etiquetaInmueble(inmueble) }}</option></select></label>
+        <label><span>Proveedor</span><select [(ngModel)]="formOrden.proveedor_id"><option [value]="null">sin asignar</option><option *ngFor="let proveedor of proveedores" [value]="proveedor.id">{{ proveedor.nombre }}</option></select></label>
+        <label><span>Fecha límite</span><input type="datetime-local" [(ngModel)]="formOrden.fecha_limite"></label>
+        <label><span>Costo estimado</span><input type="number" [(ngModel)]="formOrden.costo_estimado"></label>
+        <label class="wide"><span>Descripción</span><input [(ngModel)]="formOrden.descripcion"></label>
+      </div>
+      <div class="button-row"><button type="button" class="button" (click)="crearOrden()">Crear orden</button></div>
+    </ng-container>
+
+    <h3>Órdenes de mantenimiento</h3>
+    <div class="button-row">
+      <label class="select-field inline"><span>Estado</span>
+        <select [value]="filtroOrden" (change)="filtroOrden = $any($event.target).value; cargarMantenimiento()">
+          <option value="">todas</option><option value="abierta">abierta</option><option value="asignada">asignada</option>
+          <option value="esperando_cotizacion">esperando cotización</option><option value="en_ejecucion">en ejecución</option>
+          <option value="completada">completada</option><option value="cancelada">cancelada</option>
+        </select>
+      </label>
+    </div>
+    <table class="data-table" *ngIf="ordenes.length; else sinOrdenes">
+      <thead><tr><th>#</th><th>Título</th><th>Prioridad</th><th>Estado</th><th>Responsable</th><th>Proveedor</th><th>Límite</th><th>Costos</th><th></th></tr></thead>
+      <tbody>
+        <tr *ngFor="let orden of ordenes">
+          <td>{{ orden.id }}</td>
+          <td>{{ orden.titulo }}</td>
+          <td>{{ orden.prioridad }}</td>
+          <td><span class="badge" [class.bad]="orden.vencida">{{ orden.estado }}</span></td>
+          <td>{{ orden.responsable || '—' }}</td>
+          <td>{{ orden.proveedor || '—' }}</td>
+          <td>{{ orden.fecha_limite ? (orden.fecha_limite | date:'dd/MM/yyyy HH:mm') : '—' }}
+            <small *ngIf="orden.vencida">vencida hace {{ -orden.dias_restantes }} días</small></td>
+          <td>est. {{ orden.costo_estimado || '—' }} / final {{ orden.costo_final || '—' }}</td>
+          <td><button type="button" class="button tiny" (click)="abrirOrden(orden.id)">Detalle</button></td>
+        </tr>
+      </tbody>
+    </table>
+    <ng-template #sinOrdenes><p class="muted">No hay órdenes registradas.</p></ng-template>
+
+    <section class="subpanel" *ngIf="ordenDetalle">
+      <div class="section-heading">
+        <div><p class="eyebrow">Orden #{{ ordenDetalle.id }}</p><h3>{{ ordenDetalle.titulo }}</h3></div>
+        <button type="button" class="button tiny secondary" (click)="ordenDetalle = null">Cerrar</button>
+      </div>
+      <p>{{ ordenDetalle.descripcion }}</p>
+      <p class="muted">Estado {{ ordenDetalle.estado }} · prioridad {{ ordenDetalle.prioridad }} · responsable {{ ordenDetalle.responsable || '—' }} · proveedor {{ ordenDetalle.proveedor || '—' }} · límite {{ ordenDetalle.fecha_limite ? (ordenDetalle.fecha_limite | date:'dd/MM/yyyy HH:mm') : '—' }}</p>
+
+      <h4>Cotizaciones</h4>
+      <table class="data-table" *ngIf="ordenDetalle.cotizaciones?.length; else sinCotizaciones">
+        <thead><tr><th>Proveedor</th><th>Monto</th><th>Descripción</th><th>Aprobación</th><th>Selección</th><th></th></tr></thead>
+        <tbody>
+          <tr *ngFor="let cotizacion of ordenDetalle.cotizaciones">
+            <td>{{ cotizacion.proveedor_nombre }}</td><td>{{ cotizacion.monto }}</td><td>{{ cotizacion.descripcion || '—' }}</td>
+            <td><span class="badge" [class.bad]="cotizacion.aprobacion_estado !== 'aprobada'">{{ cotizacion.aprobacion_estado || 'pendiente' }}</span><small *ngIf="cotizacion.nota_aprobacion">{{ cotizacion.nota_aprobacion }}</small></td>
+            <td>{{ cotizacion.estado }}</td>
+            <td class="button-row">
+              <button type="button" class="button tiny" *ngIf="esAdmin && cotizacion.aprobacion_estado !== 'aprobada' && cotizacion.estado !== 'seleccionada'" (click)="aprobarCotizacion(cotizacion.id, 'aprobada')">Aprobar gasto</button>
+              <button type="button" class="button tiny secondary" *ngIf="esAdmin && cotizacion.aprobacion_estado === 'pendiente'" (click)="aprobarCotizacion(cotizacion.id, 'rechazada')">Rechazar</button>
+              <button type="button" class="button tiny" *ngIf="cotizacion.aprobacion_estado === 'aprobada' && cotizacion.estado !== 'seleccionada' && esAdmin" (click)="seleccionarCotizacion(cotizacion.id)">Seleccionar</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <ng-template #sinCotizaciones><p class="muted">Sin cotizaciones registradas.</p></ng-template>
+      <div class="form-grid" *ngIf="esAdmin">
+        <label><span>Proveedor</span><select [(ngModel)]="formCotizacion.proveedor_nombre"><option *ngFor="let proveedor of proveedores" [value]="proveedor.nombre">{{ proveedor.nombre }}</option></select></label>
+        <label><span>Monto</span><input type="number" [(ngModel)]="formCotizacion.monto"></label>
+        <label class="wide"><span>Descripción</span><input [(ngModel)]="formCotizacion.descripcion"></label>
+      </div>
+      <div class="button-row" *ngIf="esAdmin"><button type="button" class="button tiny" (click)="crearCotizacion()">Agregar cotización</button></div>
+
+      <h4>Evidencias (fotos y soportes)</h4>
+      <div class="gallery" *ngIf="ordenDetalle.evidencias?.length; else sinEvidencias">
+        <article *ngFor="let evidencia of ordenDetalle.evidencias">
+          <button type="button" class="link" (click)="verAdjunto(evidencia.url)">{{ evidencia.tipo }} #{{ evidencia.id }}</button>
+          <small>{{ evidencia.descripcion || 'sin descripción' }}</small>
+        </article>
+      </div>
+      <ng-template #sinEvidencias><p class="muted">Sin evidencias cargadas.</p></ng-template>
+      <div class="form-grid">
+        <label><span>Foto de la orden</span><input type="file" accept="image/png,image/jpeg,image/webp" (change)="elegirArchivo($event, 'evidencia')"></label>
+        <label><span>Soporte (PDF o imagen)</span><input type="file" accept="application/pdf,image/*" (change)="elegirArchivo($event, 'soporte')"></label>
+      </div>
+      <div class="button-row">
+        <button type="button" class="button tiny" (click)="subirEvidencia('evidencias')">Subir foto</button>
+        <button type="button" class="button tiny secondary" (click)="subirEvidencia('soportes')">Subir soporte</button>
+      </div>
+
+      <h4>Avances</h4>
+      <ol class="timeline" *ngIf="ordenDetalle.avances?.length; else sinAvances">
+        <li *ngFor="let avance of ordenDetalle.avances">
+          <strong>{{ avance.estado }}</strong> · {{ avance.nota }}
+          <small>{{ avance.creado_en | date:'dd/MM/yyyy HH:mm' }}</small>
+        </li>
+      </ol>
+      <ng-template #sinAvances><p class="muted">Sin avances registrados.</p></ng-template>
+      <div class="form-grid">
+        <label class="wide"><span>Nuevo avance</span><input [(ngModel)]="formAvance.nota" placeholder="Qué se hizo"></label>
+        <label><span>Estado</span>
+          <select [(ngModel)]="formAvance.estado">
+            <option value="">sin cambio</option><option value="abierta">abierta</option><option value="asignada">asignada</option>
+            <option value="esperando_cotizacion">esperando cotización</option><option value="en_ejecucion">en ejecución</option>
+            <option value="completada">completada</option><option value="cancelada">cancelada</option>
+          </select>
+        </label>
+      </div>
+      <div class="button-row"><button type="button" class="button tiny" (click)="agregarAvance()">Registrar avance</button></div>
+
+      <h4>Cierre</h4>
+      <div class="form-grid">
+        <label><span>Estado final</span><select [(ngModel)]="formCierreOrden.estado"><option value="completada">completada</option><option value="cancelada">cancelada</option><option value="en_ejecucion">en ejecución</option></select></label>
+        <label><span>Costo final</span><input type="number" [(ngModel)]="formCierreOrden.costo_final"></label>
+        <label class="wide"><span>Nota</span><input [(ngModel)]="formCierreOrden.nota"></label>
+      </div>
+      <div class="button-row"><button type="button" class="button tiny" (click)="actualizarOrden()">Guardar cambios</button></div>
+    </section>
+
+    <h3 *ngIf="esAdmin">Órdenes vencidas</h3>
+    <table class="data-table" *ngIf="esAdmin && ordenesVencidas.length">
+      <thead><tr><th>#</th><th>Título</th><th>Límite</th><th>Días</th><th>Responsable</th></tr></thead>
+      <tbody><tr *ngFor="let orden of ordenesVencidas"><td>{{ orden.id }}</td><td>{{ orden.titulo }}</td><td>{{ orden.fecha_limite | date:'dd/MM/yyyy' }}</td><td>{{ -orden.dias_restantes }}</td><td>{{ orden.responsable || '—' }}</td></tr></tbody>
+    </table>
+  </section>
+
+  <!-- ============================ VISITANTES ============================ -->
+  <section class="panel" *ngIf="seccion === 'visitantes'">
+    <div class="section-heading">
+      <div><p class="eyebrow">Portería digital</p><h2>Control de visitantes</h2></div>
+      <div class="tiles compact" *ngIf="visitResumen">
+        <article class="tile"><span>Hoy</span><strong>{{ visitResumen.accesos_hoy }}</strong></article>
+        <article class="tile"><span>En sitio</span><strong>{{ visitResumen.en_sitio }}</strong></article>
+        <article class="tile"><span>Sin autorización</span><strong>{{ visitResumen.sin_autorizacion_hoy }}</strong></article>
+        <article class="tile"><span>Alertas enviadas</span><strong>{{ visitResumen.alertas_enviadas_hoy }}</strong></article>
+      </div>
+    </div>
+
+    <h3>Autorizar una visita</h3>
+    <div class="form-grid">
+      <label><span>Inmueble</span><select [(ngModel)]="formAutorizacion.inmueble_id"><option *ngFor="let inmueble of inmuebles" [value]="inmueble.id">{{ etiquetaInmueble(inmueble) }}</option></select></label>
+      <label><span>Nombre del visitante</span><input [(ngModel)]="formAutorizacion.nombre"></label>
+      <label><span>Documento</span><input [(ngModel)]="formAutorizacion.documento"></label>
+      <label><span>Placa del vehículo</span><input [(ngModel)]="formAutorizacion.placa" placeholder="ABC123"></label>
+      <label><span>Usos permitidos</span><input type="number" min="1" [(ngModel)]="formAutorizacion.usos_maximos"></label>
+      <label><span>Válida hasta</span><input type="datetime-local" [(ngModel)]="formAutorizacion.valido_hasta"></label>
+    </div>
+    <div class="button-row"><button type="button" class="button" (click)="crearAutorizacion()">Autorizar visita</button></div>
+
+    <table class="data-table" *ngIf="autorizaciones.length; else sinAutorizaciones">
+      <thead><tr><th>#</th><th>Visitante</th><th>Inmueble</th><th>Placa</th><th>Vigencia</th><th>Usos</th><th>Estado</th><th></th></tr></thead>
+      <tbody>
+        <tr *ngFor="let autorizacion of autorizaciones">
+          <td>{{ autorizacion.id }}</td>
+          <td>{{ autorizacion.visitante }}</td>
+          <td>{{ autorizacion.inmueble }}</td>
+          <td>{{ autorizacion.placa || '—' }}</td>
+          <td>{{ autorizacion.valido_desde | date:'dd/MM HH:mm' }} → {{ autorizacion.valido_hasta ? (autorizacion.valido_hasta | date:'dd/MM HH:mm') : 'sin límite' }}</td>
+          <td>{{ autorizacion.usos_actuales }}/{{ autorizacion.usos_maximos || '∞' }}</td>
+          <td><span class="badge" [class.bad]="!autorizacion.vigente">{{ autorizacion.vigente ? 'vigente' : autorizacion.estado }}</span></td>
+          <td><button type="button" class="button tiny secondary" (click)="cancelarAutorizacion(autorizacion.id)">Cancelar</button></td>
+        </tr>
+      </tbody>
+    </table>
+    <ng-template #sinAutorizaciones><p class="muted">Sin autorizaciones registradas.</p></ng-template>
+
+    <ng-container *ngIf="esAdmin || esPortero">
+      <h3>Registrar ingreso en portería</h3>
+      <div class="form-grid">
+        <label><span>Inmueble</span><select [(ngModel)]="formAccesoVisitante.inmueble_id"><option *ngFor="let inmueble of inmuebles" [value]="inmueble.id">{{ etiquetaInmueble(inmueble) }}</option></select></label>
+        <label><span>Autorización (opcional)</span>
+          <select [(ngModel)]="formAccesoVisitante.autorizacion_id">
+            <option [value]="null">sin autorización</option>
+            <option *ngFor="let autorizacion of autorizaciones" [value]="autorizacion.id" [disabled]="!autorizacion.vigente">{{ autorizacion.visitante }} · {{ autorizacion.inmueble }}</option>
+          </select>
+        </label>
+        <label><span>Nombre</span><input [(ngModel)]="formAccesoVisitante.nombre" placeholder="Visitante o domiciliario"></label>
+        <label><span>Documento</span><input [(ngModel)]="formAccesoVisitante.documento"></label>
+        <label><span>Placa</span><input [(ngModel)]="formAccesoVisitante.placa"></label>
+        <label class="wide"><span>Observación</span><input [(ngModel)]="formAccesoVisitante.observacion"></label>
+      </div>
+      <div class="button-row"><button type="button" class="button" (click)="registrarIngreso()">Registrar ingreso y alertar al residente</button></div>
+
+      <h3>Visitantes en sitio</h3>
+      <table class="data-table" *ngIf="visitantesEnSitio.length; else sinEnSitio">
+        <thead><tr><th>Visitante</th><th>Inmueble</th><th>Placa</th><th>Ingreso</th><th>Permanencia</th><th></th></tr></thead>
+        <tbody>
+          <tr *ngFor="let visita of visitantesEnSitio">
+            <td>{{ visita.nombre_visitante }}</td><td>{{ visita.inmueble }}</td><td>{{ visita.placa || '—' }}</td>
+            <td>{{ visita.ingreso_en | date:'dd/MM HH:mm' }}</td><td>{{ visita.permanencia_minutos }} min</td>
+            <td><button type="button" class="button tiny" (click)="registrarSalida(visita.id)">Registrar salida</button></td>
+          </tr>
+        </tbody>
+      </table>
+      <ng-template #sinEnSitio><p class="muted">No hay visitantes dentro del conjunto.</p></ng-template>
+
+      <h3>Historial de accesos</h3>
+      <table class="data-table" *ngIf="accesos.length">
+        <thead><tr><th>Visitante</th><th>Inmueble</th><th>Placa</th><th>Ingreso</th><th>Salida</th><th>Autorizado</th><th>Portero</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let acceso of accesos">
+            <td>{{ acceso.nombre_visitante }}</td><td>{{ acceso.inmueble }}</td><td>{{ acceso.placa || '—' }}</td>
+            <td>{{ acceso.ingreso_en | date:'dd/MM HH:mm' }}</td>
+            <td>{{ acceso.salida_en ? (acceso.salida_en | date:'dd/MM HH:mm') : 'en sitio' }}</td>
+            <td><span class="badge" [class.bad]="!acceso.autorizado_por_residente">{{ acceso.autorizado_por_residente ? 'sí' : 'no' }}</span></td>
+            <td>{{ acceso.portero || '—' }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </ng-container>
+
+    <h3>Lista de invitados frecuentes</h3>
+    <table class="data-table" *ngIf="directorio.length; else sinDirectorio">
+      <thead><tr><th>Nombre</th><th>Tipo</th><th>Documento</th><th>Placa</th><th>Inmueble</th></tr></thead>
+      <tbody>
+        <tr *ngFor="let invitado of directorio">
+          <td>{{ invitado.nombre }}</td><td>{{ invitado.tipo }}</td><td>{{ invitado.documento || '—' }}</td>
+          <td>{{ invitado.placa || '—' }}</td><td>{{ invitado.inmueble_id }}</td>
+        </tr>
+      </tbody>
+    </table>
+    <ng-template #sinDirectorio><p class="muted">Sin invitados registrados.</p></ng-template>
+  </section>
+
+  <!-- ============================= SEGURIDAD ============================= -->
+  <section class="panel" *ngIf="seccion === 'seguridad'">
+    <div class="section-heading">
+      <div><p class="eyebrow">Cuenta y datos</p><h2>Seguridad y protección de datos</h2></div>
+      <span class="badge" [class.bad]="segEstado && !segEstado.habilitado">2FA {{ segEstado?.habilitado ? 'activo' : 'inactivo' }}</span>
+    </div>
+
+    <h3>Segundo factor</h3>
+    <p class="note" *ngIf="segEstado">Límite de intentos: {{ segEstado.limite_intentos }} en {{ segEstado.ventana_intentos_minutos }} minutos · bloqueo {{ segEstado.bloqueo_minutos }} minutos{{ segEstado.obligatorio_para_administracion ? ' · obligatorio para administración' : '' }}.</p>
+    <div class="button-row">
+      <button type="button" class="button" *ngIf="!segEstado?.habilitado" (click)="iniciar2fa()">Activar segundo factor</button>
+      <button type="button" class="button secondary" *ngIf="segEstado?.habilitado" (click)="desactivar2fa()">Desactivar segundo factor</button>
+    </div>
+    <ng-container *ngIf="setup2fa">
+      <p class="note">Secreto: <code>{{ setup2fa.secreto }}</code></p>
+      <p class="note">URI para tu aplicación: <code>{{ setup2fa.uri }}</code></p>
+      <div class="form-grid">
+        <label><span>Código de 6 dígitos</span><input [(ngModel)]="form2fa.codigo" inputmode="numeric"></label>
+      </div>
+      <div class="button-row">
+        <button type="button" class="button" (click)="confirmar2fa()">Confirmar y activar</button>
+        <button type="button" class="button secondary" (click)="verificar2fa()">Verificar código (usar en operaciones sensibles)</button>
+      </div>
+    </ng-container>
+    <div class="codes" *ngIf="codigosRecuperacion.length">
+      <p class="note">Códigos de recuperación (guárdalos; cada uno sirve una sola vez):</p>
+      <code *ngFor="let codigo of codigosRecuperacion">{{ codigo }}</code>
+    </div>
+
+    <h3>Sesiones registradas</h3>
+    <table class="data-table" *ngIf="sesiones.length; else sinSesiones">
+      <thead><tr><th>IP</th><th>Origen</th><th>Agente</th><th>Creada</th><th>Última actividad</th><th>Estado</th><th></th></tr></thead>
+      <tbody>
+        <tr *ngFor="let sesion of sesiones">
+          <td>{{ sesion.ip || '—' }}</td><td>{{ sesion.origen }}</td><td class="truncate">{{ sesion.agente || '—' }}</td>
+          <td>{{ sesion.creado_en | date:'dd/MM/yyyy HH:mm' }}</td>
+          <td>{{ sesion.ultima_actividad ? (sesion.ultima_actividad | date:'dd/MM/yyyy HH:mm') : '—' }}</td>
+          <td><span class="badge" [class.bad]="sesion.revocada_en">{{ sesion.revocada_en ? 'cerrada' : 'activa' }}</span></td>
+          <td><button type="button" class="button tiny secondary" *ngIf="!sesion.revocada_en" (click)="revocarSesion(sesion.id)">Cerrar</button></td>
+        </tr>
+      </tbody>
+    </table>
+    <ng-template #sinSesiones><p class="muted">Sin sesiones activas.</p></ng-template>
+    <div class="button-row">
+      <button type="button" class="button secondary" (click)="revocarTodas()">Cerrar todas las sesiones</button>
+    </div>
+
+    <ng-container *ngIf="esAdmin">
+      <h3>Política de retención y privacidad</h3>
+      <div class="form-grid">
+        <label><span>Auditoría (días)</span><input type="number" [(ngModel)]="formPolitica.dias_retencion_auditoria"></label>
+        <label><span>Accesos (días)</span><input type="number" [(ngModel)]="formPolitica.dias_retencion_accesos"></label>
+        <label><span>Avisos (días)</span><input type="number" [(ngModel)]="formPolitica.dias_retencion_avisos"></label>
+        <label><span>Intentos (días)</span><input type="number" [(ngModel)]="formPolitica.dias_retencion_intentos"></label>
+        <label><span>Sesiones (días)</span><input type="number" [(ngModel)]="formPolitica.dias_retencion_sesiones"></label>
+        <label class="checkbox"><input type="checkbox" [(ngModel)]="formPolitica.anonimizar_al_purgar"> <span>Anonimizar en lugar de eliminar</span></label>
+        <label class="wide"><span>Texto de privacidad</span><textarea rows="4" [(ngModel)]="formPolitica.texto_privacidad"></textarea></label>
+      </div>
+      <div class="button-row">
+        <button type="button" class="button" (click)="guardarPolitica()">Guardar política</button>
+        <button type="button" class="button secondary" (click)="purgar(true)">Simular depuración</button>
+        <button type="button" class="button secondary" (click)="purgar(false)">Aplicar depuración</button>
+      </div>
+      <p class="note" *ngIf="purgaSimulada">Registros vencidos — auditoría {{ purgaSimulada.auditoria }}, accesos {{ purgaSimulada.accesos }}, avisos {{ purgaSimulada.avisos }}, intentos {{ purgaSimulada.intentos }}, sesiones {{ purgaSimulada.sesiones }}{{ purgaSimulada.simulacion ? ' (simulación)' : ' (aplicado)' }}.</p>
+
+      <h3>Intentos de acceso fallidos</h3>
+      <table class="data-table" *ngIf="intentos.length; else sinIntentos">
+        <thead><tr><th>Correo</th><th>IP</th><th>Motivo</th><th>Fecha</th></tr></thead>
+        <tbody><tr *ngFor="let intento of intentos"><td>{{ intento.email }}</td><td>{{ intento.ip || '—' }}</td><td>{{ intento.motivo }}</td><td>{{ intento.creado_en | date:'dd/MM/yyyy HH:mm' }}</td></tr></tbody>
+      </table>
+      <ng-template #sinIntentos><p class="muted">Sin intentos fallidos registrados.</p></ng-template>
+    </ng-container>
+
+    <h3>Transparencia y habeas data</h3>
+    <p class="note" *ngIf="privacidad">{{ privacidad.texto }}</p>
+    <p class="note" *ngIf="privacidad">Retención — auditoría {{ privacidad.retencion?.auditoria_dias }} días, accesos {{ privacidad.retencion?.accesos_dias }}, avisos {{ privacidad.retencion?.avisos_dias }}. Tus derechos: {{ privacidad.derechos?.join(', ') }}.</p>
+    <div class="form-grid" *ngIf="esResidente">
+      <label><span>Tipo de solicitud</span>
+        <select [(ngModel)]="formSolicitudDatos.tipo">
+          <option value="acceso">Acceso a mis datos</option><option value="rectificacion">Rectificación</option>
+          <option value="revocatoria">Revocatoria del consentimiento</option><option value="supresion">Supresión</option><option value="queja">Queja</option>
+        </select>
+      </label>
+      <label class="wide"><span>Detalle</span><input [(ngModel)]="formSolicitudDatos.detalle"></label>
+    </div>
+    <div class="button-row" *ngIf="esResidente"><button type="button" class="button" (click)="solicitarDatos()">Radicar solicitud</button></div>
+  </section>
+
+  <!-- =========================== CONTABILIDAD =========================== -->
+  <section class="panel" *ngIf="seccion === 'contabilidad'">
+    <div class="section-heading">
+      <div><p class="eyebrow">Finanzas del conjunto</p><h2>Contabilidad y cartera</h2></div>
+      <div class="button-row">
+        <button type="button" class="button secondary" (click)="exportarContabilidad('cartera')">Cartera XLSX</button>
+        <button type="button" class="button secondary" (click)="exportarContabilidad('egresos')">Egresos XLSX</button>
+      </div>
+    </div>
+
+    <div class="tiles" *ngIf="cartera">
+      <article class="tile"><span>Pendiente</span><strong>{{ cartera.total_pendiente }}</strong><small>{{ cartera.cuotas_pendientes }} cuotas</small></article>
+      <article class="tile"><span>Vencido</span><strong>{{ cartera.total_vencido }}</strong></article>
+      <article class="tile"><span>Intereses y recargos</span><strong>{{ cartera.cargos_monto }}</strong><small>{{ cartera.cargos_pendientes }} cargos</small></article>
+    </div>
+
+    <h3>Parámetros de cartera</h3>
+    <div class="form-grid">
+      <label><span>Interés moratorio diario (0-1)</span><input [(ngModel)]="formCarteraConfig.interes_moratorio_diario"></label>
+      <label><span>Tasa de mora mensual (0-1)</span><input [(ngModel)]="formCarteraConfig.tasa_mora_mensual"></label>
+      <label><span>Recargo fijo</span><input type="number" [(ngModel)]="formCarteraConfig.recargo_fijo"></label>
+      <label><span>Días de gracia</span><input type="number" [(ngModel)]="formCarteraConfig.dias_gracia"></label>
+      <label class="checkbox"><input type="checkbox" [(ngModel)]="formCarteraConfig.activo"> <span>Cobrar intereses automáticamente</span></label>
+    </div>
+    <div class="button-row">
+      <button type="button" class="button" (click)="guardarCarteraConfig()">Guardar parámetros</button>
+      <button type="button" class="button secondary" (click)="calcularMora()">Calcular intereses y recargos</button>
+    </div>
+    <p class="note" *ngIf="moraResultado">Cuotas vencidas {{ moraResultado.cuotas_vencidas }} · cargos aplicados {{ moraResultado.cargos_aplicados }} · omitidos {{ moraResultado.omitidos }}.</p>
+
+    <h3>Cartera por inmueble</h3>
+    <table class="data-table" *ngIf="cartera?.por_inmueble?.length; else sinCartera">
+      <thead><tr><th>Inmueble</th><th>Cuotas</th><th>Monto</th><th>Mora máxima</th></tr></thead>
+      <tbody>
+        <tr *ngFor="let registro of cartera.por_inmueble">
+          <td>{{ registro.etiqueta }}</td><td>{{ registro['Cuotas'] }}</td><td>{{ registro.monto }}</td><td>{{ registro.dias_mora_max }} días</td>
+        </tr>
+      </tbody>
+    </table>
+    <ng-template #sinCartera><p class="muted">Sin cartera pendiente registrada.</p></ng-template>
+
+    <h3>Egresos</h3>
+    <div class="form-grid">
+      <label><span>Concepto</span><input [(ngModel)]="formEgreso.concepto"></label>
+      <label><span>Categoría</span><input [(ngModel)]="formEgreso.categoria"></label>
+      <label><span>Monto</span><input type="number" [(ngModel)]="formEgreso.monto"></label>
+      <label><span>Fecha</span><input type="date" [(ngModel)]="formEgreso.fecha"></label>
+    </div>
+    <div class="button-row"><button type="button" class="button" (click)="crearEgreso()">Registrar egreso</button></div>
+    <table class="data-table" *ngIf="egresos.length; else sinEgresos">
+      <thead><tr><th>Fecha</th><th>Concepto</th><th>Categoría</th><th>Monto</th><th>Proveedor</th><th></th></tr></thead>
+      <tbody>
+        <tr *ngFor="let egreso of egresos">
+          <td>{{ egreso.fecha | date:'dd/MM/yyyy' }}</td><td>{{ egreso.concepto }}</td><td>{{ egreso.categoria }}</td>
+          <td>{{ egreso.monto }}</td><td>{{ egreso.proveedor || '—' }}</td>
+          <td><button type="button" class="button tiny secondary" (click)="borrarEgreso(egreso.id)">Eliminar</button></td>
+        </tr>
+      </tbody>
+    </table>
+    <ng-template #sinEgresos><p class="muted">Sin egresos registrados.</p></ng-template>
+
+    <h3>Presupuesto por periodo</h3>
+    <div class="form-grid">
+      <label><span>Periodo (AAAA-MM)</span><input [(ngModel)]="formPresupuesto.periodo"></label>
+      <label><span>Categoría</span><input [(ngModel)]="formPresupuesto.categoria"></label>
+      <label><span>Monto presupuestado</span><input type="number" [(ngModel)]="formPresupuesto.monto_presupuestado"></label>
+    </div>
+    <div class="button-row"><button type="button" class="button" (click)="guardarPresupuesto()">Guardar presupuesto</button></div>
+    <table class="data-table" *ngIf="presupuestos.length">
+      <thead><tr><th>Periodo</th><th>Categoría</th><th>Presupuestado</th><th>Notas</th></tr></thead>
+      <tbody><tr *ngFor="let presupuesto of presupuestos"><td>{{ presupuesto.periodo }}</td><td>{{ presupuesto.categoria }}</td><td>{{ presupuesto.monto_presupuestado }}</td><td>{{ presupuesto.notas || '—' }}</td></tr></tbody>
+    </table>
+
+    <h3>Conciliación bancaria</h3>
+    <div class="form-grid">
+      <label><span>Extracto (.csv o .xlsx)</span><input type="file" accept=".csv,.xlsx" (change)="elegirExtracto($event)"></label>
+    </div>
+    <div class="button-row">
+      <button type="button" class="button" (click)="importarExtracto()">Importar extracto</button>
+      <button type="button" class="button secondary" (click)="conciliarBancaria()">Conciliar automáticamente</button>
+    </div>
+    <table class="data-table" *ngIf="movimientos.length; else sinMovimientos">
+      <thead><tr><th>Fecha</th><th>Descripción</th><th>Referencia</th><th>Débito</th><th>Crédito</th><th>Conciliado</th></tr></thead>
+      <tbody>
+        <tr *ngFor="let movimiento of movimientos">
+          <td>{{ movimiento.fecha | date:'dd/MM/yyyy' }}</td><td>{{ movimiento.descripcion }}</td><td>{{ movimiento.referencia || '—' }}</td>
+          <td>{{ movimiento.debito }}</td><td>{{ movimiento.credito }}</td>
+          <td><span class="badge" [class.bad]="!movimiento.conciliado">{{ movimiento.conciliado ? 'sí' : 'no' }}</span></td>
+        </tr>
+      </tbody>
+    </table>
+    <ng-template #sinMovimientos><p class="muted">Sin movimientos importados.</p></ng-template>
+
+    <h3>Informe por periodo</h3>
+    <div class="form-grid">
+      <label><span>Desde</span><input type="date" [(ngModel)]="formInforme.desde"></label>
+      <label><span>Hasta</span><input type="date" [(ngModel)]="formInforme.hasta"></label>
+    </div>
+    <div class="button-row"><button type="button" class="button" (click)="generarInforme()">Generar informe</button></div>
+    <table class="data-table" *ngIf="informe">
+      <thead><tr><th>Indicador</th><th>Valor</th></tr></thead>
+      <tbody><tr *ngFor="let fila of valoresPanel(informe)"><td>{{ fila.clave }}</td><td>{{ fila.valor }}</td></tr></tbody>
+    </table>
+  </section>
+
+  <!-- ============================= ASAMBLEAS ============================= -->
+  <section class="panel" *ngIf="seccion === 'asambleas'">
+    <div class="section-heading">
+      <div><p class="eyebrow">Democracia digital</p><h2>Asambleas, quórum y votación</h2></div>
+      <span class="badge" *ngIf="asambleaDetalle">Quórum {{ asambleaDetalle.quorum?.porcentaje }}% (requerido {{ asambleaDetalle.quorum?.requerido }}%)</span>
+    </div>
+
+    <div class="asamblea-grid">
+      <div>
+        <h3>Asambleas</h3>
+        <table class="data-table" *ngIf="asambleas.length; else sinAsambleas">
+          <thead><tr><th>Título</th><th>Estado</th><th>Quórum</th><th>Inicio</th><th></th></tr></thead>
+          <tbody>
+            <tr *ngFor="let asamblea of asambleas">
+              <td>{{ asamblea.titulo }}</td>
+              <td><span class="badge" [class.bad]="asamblea.estado === 'cerrada'">{{ asamblea.estado }}</span></td>
+              <td>{{ asamblea.quorum?.porcentaje }}%</td>
+              <td>{{ asamblea.fecha_inicio | date:'dd/MM/yyyy HH:mm' }}</td>
+              <td><button type="button" class="button tiny" (click)="abrirAsamblea(asamblea.id)">Abrir</button></td>
+            </tr>
+          </tbody>
+        </table>
+        <ng-template #sinAsambleas><p class="muted">Sin asambleas registradas.</p></ng-template>
+
+        <ng-container *ngIf="esAdmin">
+          <h3>Nueva asamblea</h3>
+          <div class="form-grid">
+            <label><span>Título</span><input [(ngModel)]="formAsamblea.titulo"></label>
+            <label><span>Tipo</span><select [(ngModel)]="formAsamblea.tipo"><option value="ordinaria">ordinaria</option><option value="extraordinaria">extraordinaria</option></select></label>
+            <label><span>Modalidad</span><select [(ngModel)]="formAsamblea.modalidad"><option value="presencial">presencial</option><option value="virtual">virtual</option><option value="mixta">mixta</option></select></label>
+            <label><span>Lugar</span><input [(ngModel)]="formAsamblea.lugar"></label>
+            <label><span>Enlace</span><input [(ngModel)]="formAsamblea.enlace"></label>
+            <label><span>Quórum requerido (%)</span><input type="number" [(ngModel)]="formAsamblea.quorum_requerido"></label>
+            <label><span>Inicio</span><input type="datetime-local" [(ngModel)]="formAsamblea.fecha_inicio"></label>
+            <label><span>Cierre</span><input type="datetime-local" [(ngModel)]="formAsamblea.fecha_fin"></label>
+          </div>
+          <div class="button-row"><button type="button" class="button" (click)="crearAsamblea()">Crear asamblea</button></div>
+        </ng-container>
+      </div>
+
+      <div *ngIf="asambleaDetalle">
+        <h3>{{ asambleaDetalle.titulo }}</h3>
+        <p class="muted">{{ asambleaDetalle.tipo }} · {{ asambleaDetalle.modalidad }} · {{ asambleaDetalle.lugar || asambleaDetalle.enlace || 'sin lugar' }} · {{ asambleaDetalle.fecha_inicio | date:'dd/MM/yyyy HH:mm' }} → {{ asambleaDetalle.fecha_fin | date:'dd/MM/yyyy HH:mm' }}</p>
+        <div class="button-row">
+          <button type="button" class="button tiny" (click)="registrarAsistencia()">Registrar mi asistencia</button>
+          <ng-container *ngIf="esAdmin">
+            <button type="button" class="button tiny secondary" (click)="cambiarEstadoAsamblea('en_curso')">Abrir</button>
+            <button type="button" class="button tiny secondary" (click)="cambiarEstadoAsamblea('cerrada')">Cerrar</button>
+            <button type="button" class="button tiny secondary" (click)="convocarAsamblea()">Convocar</button>
+            <button type="button" class="button tiny secondary" (click)="generarActa()">Generar acta</button>
+          </ng-container>
+          <button type="button" class="button tiny secondary" (click)="verActa()">Ver acta</button>
+        </div>
+        <p class="note">Quórum: {{ asambleaDetalle.quorum?.unidades_representadas }}/{{ asambleaDetalle.quorum?.unidades_totales }} unidades · {{ asambleaDetalle.quorum?.porcentaje }}% · {{ asambleaDetalle.quorum?.alcanzado ? 'alcanzado' : 'no alcanzado' }}</p>
+
+        <h4>Votaciones</h4>
+        <article class="votacion" *ngFor="let votacion of asambleaDetalle.votaciones">
+          <header>
+            <strong>{{ votacion.titulo }}</strong>
+            <span class="badge" [class.bad]="votacion.estado !== 'abierta'">{{ votacion.estado }}</span>
+          </header>
+          <p class="muted" *ngIf="votacion.descripcion">{{ votacion.descripcion }}</p>
+          <p class="muted">Mayoría {{ votacion.mayoria }} · votos válidos {{ votacion.votos_validos }} · decisión {{ votacion.ganador || 'sin definir' }}</p>
+          <table class="data-table mini">
+            <tbody><tr *ngFor="let fila of valoresPanel(votacion.conteo)"><td>{{ fila.clave }}</td><td>{{ fila.valor }}</td></tr></tbody>
+          </table>
+          <div class="button-row" *ngIf="esResidente">
+            <button type="button" class="button tiny" *ngFor="let opcion of votacion.opciones" (click)="votar(votacion.votacion_id, opcion)">{{ opcion }}</button>
+            <button type="button" class="button tiny secondary" *ngIf="votacion.permite_abstencion" (click)="votar(votacion.votacion_id, 'abstencion')">abstención</button>
+          </div>
+          <div class="button-row" *ngIf="esAdmin">
+            <button type="button" class="button tiny" (click)="cambiarEstadoVotacion(votacion.votacion_id, 'abierta')">Abrir votación</button>
+            <button type="button" class="button tiny secondary" (click)="cambiarEstadoVotacion(votacion.votacion_id, 'cerrada')">Cerrar votación</button>
+          </div>
+        </article>
+
+        <ng-container *ngIf="esAdmin">
+          <h4>Nueva votación</h4>
+          <div class="form-grid">
+            <label class="wide"><span>Título</span><input [(ngModel)]="formVotacion.titulo"></label>
+            <label><span>Tipo</span><select [(ngModel)]="formVotacion.tipo"><option value="si_no">Sí / No</option><option value="opciones">Opciones</option><option value="eleccion">Elección</option></select></label>
+            <label><span>Mayoría</span><select [(ngModel)]="formVotacion.mayoria"><option value="simple">simple</option><option value="absoluta">absoluta</option><option value="calificada">calificada</option></select></label>
+            <label class="wide"><span>Opciones (separadas por coma, para tipo opciones)</span><input [(ngModel)]="formVotacion.opcionesTexto" placeholder="opción 1, opción 2"></label>
+            <label class="checkbox"><input type="checkbox" [(ngModel)]="formVotacion.permite_abstencion"> <span>Permite abstención</span></label>
+          </div>
+          <div class="button-row"><button type="button" class="button" (click)="crearVotacion()">Crear votación</button></div>
+        </ng-container>
+
+        <h4>Asistencia registrada</h4>
+        <ul class="plain-list" *ngIf="asambleaDetalle.asistencias?.length; else sinAsistencia">
+          <li *ngFor="let asistencia of asambleaDetalle.asistencias">{{ asistencia.inmueble }} · {{ asistencia.representado_por || '—' }}{{ asistencia.poder ? ' (con poder)' : '' }}</li>
+        </ul>
+        <ng-template #sinAsistencia><p class="muted">Sin asistencia registrada.</p></ng-template>
+
+        <pre class="acta" *ngIf="acta || asambleaDetalle.acta">{{ acta || asambleaDetalle.acta }}</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== RESERVAS ============================= -->
+  <section class="panel" *ngIf="seccion === 'reservas'">
+    <div class="section-heading">
+      <div><p class="eyebrow">Reglas avanzadas</p><h2>Reservas de zonas comunes</h2></div>
+      <div class="tiles compact" *ngIf="reservasResumen">
+        <article class="tile"><span>Reservas</span><strong>{{ reservasResumen.reservas_totales }}</strong></article>
+        <article class="tile"><span>Pendientes</span><strong>{{ reservasResumen.pendientes }}</strong></article>
+        <article class="tile"><span>En espera</span><strong>{{ reservasResumen.en_lista_espera }}</strong></article>
+        <article class="tile"><span>Cierres activos</span><strong>{{ reservasResumen.cierres_activos }}</strong></article>
+        <article class="tile"><span>Inasistencias</span><strong>{{ reservasResumen.inasistencias }}</strong></article>
+      </div>
+    </div>
+
+    <div class="form-grid">
+      <label><span>Zona</span>
+        <select [value]="zonaId" (change)="zonaId = +$any($event.target).value; cargarReglaZona()">
+          <option *ngFor="let regla of reglasZonas" [value]="regla.zona_id">{{ regla.zona }}</option>
+        </select>
+      </label>
+      <label><span>Fecha de consulta</span><input type="date" [(ngModel)]="fechaDisponibilidad" (change)="verDisponibilidad()"></label>
+    </div>
+
+    <ng-container *ngIf="reglaZona">
+      <h3>Reglas de la zona</h3>
+      <div class="form-grid">
+        <label><span>Cupos por franja</span><input type="number" [(ngModel)]="reglaZona.cupos_por_franja"></label>
+        <label><span>Duración de franja (min)</span><input type="number" [(ngModel)]="reglaZona.duracion_franja_minutos"></label>
+        <label><span>Antelación mínima (h)</span><input type="number" [(ngModel)]="reglaZona.antelacion_minima_horas"></label>
+        <label><span>Límite de cancelación (h)</span><input type="number" [(ngModel)]="reglaZona.horas_limite_cancelacion"></label>
+        <label><span>Máx. reservas activas</span><input type="number" [(ngModel)]="reglaZona.max_reservas_activas_inmueble"></label>
+        <label><span>Cupos en lista de espera</span><input type="number" [(ngModel)]="reglaZona.cupos_lista_espera"></label>
+        <label><span>Tarifa por uso</span><input type="number" [(ngModel)]="reglaZona.tarifa_por_uso"></label>
+        <label><span>Penalización por inasistencia</span><input type="number" [(ngModel)]="reglaZona.penalizacion_inasistencia"></label>
+        <label class="checkbox"><input type="checkbox" [(ngModel)]="reglaZona.requiere_pago"> <span>Requiere pago</span></label>
+        <label class="checkbox"><input type="checkbox" [(ngModel)]="reglaZona.lista_espera_activa"> <span>Lista de espera activa</span></label>
+      </div>
+      <div class="button-row" *ngIf="esAdmin"><button type="button" class="button" (click)="guardarRegla()">Guardar reglas</button></div>
+    </ng-container>
+
+    <h3>Disponibilidad</h3>
+    <div class="form-grid">
+      <label><span>Inmueble</span><select [(ngModel)]="formReserva.inmueble_id"><option *ngFor="let inmueble of inmuebles" [value]="inmueble.id">{{ etiquetaInmueble(inmueble) }}</option></select></label>
+    </div>
+    <table class="data-table" *ngIf="disponibilidad?.franjas?.length; else sinFranjas">
+      <thead><tr><th>Franja</th><th>Cupos</th><th>En espera</th><th>Estado</th><th></th></tr></thead>
+      <tbody>
+        <tr *ngFor="let franja of disponibilidad.franjas">
+          <td>{{ franja.inicio | date:'dd/MM HH:mm' }} → {{ franja.fin | date:'HH:mm' }}</td>
+          <td>{{ franja.disponibles }}/{{ franja.cupos_totales }}</td>
+          <td>{{ franja.espera }}</td>
+          <td><span class="badge" [class.bad]="!franja.disponible">{{ franja.cerrado ? ('cerrado: ' + (franja.motivo_cierre || 'mantenimiento')) : (franja.disponible ? 'disponible' : 'sin cupos') }}</span></td>
+          <td class="button-row">
+            <button type="button" class="button tiny" *ngIf="franja.disponible" (click)="solicitarReserva(franja)">Reservar</button>
+            <button type="button" class="button tiny secondary" *ngIf="!franja.disponible && !franja.cerrado"
+                    (click)="formEspera.inicio = franja.inicio; formEspera.fin = franja.fin; entrarEspera()">Lista de espera</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <ng-template #sinFranjas><p class="muted">Selecciona una zona y una fecha para ver la disponibilidad.</p></ng-template>
+
+    <h3>Lista de espera</h3>
+    <table class="data-table" *ngIf="esperas.length; else sinEsperas">
+      <thead><tr><th>Zona</th><th>Inmueble</th><th>Franja</th><th>Posición</th><th>Estado</th><th></th></tr></thead>
+      <tbody>
+        <tr *ngFor="let espera of esperas">
+          <td>{{ espera.zona }}</td><td>{{ espera.inmueble }}</td>
+          <td>{{ espera.fecha_inicio | date:'dd/MM HH:mm' }} → {{ espera.fecha_fin | date:'HH:mm' }}</td>
+          <td>{{ espera.posicion }}</td><td>{{ espera.estado }}</td>
+          <td><button type="button" class="button tiny secondary" *ngIf="espera.estado === 'esperando'" (click)="salirEspera(espera.id)">Retirar</button></td>
+        </tr>
+      </tbody>
+    </table>
+    <ng-template #sinEsperas><p class="muted">Sin solicitudes en lista de espera.</p></ng-template>
+
+    <h3>Cierres por mantenimiento</h3>
+    <div class="form-grid" *ngIf="esAdmin">
+      <label><span>Motivo</span><input [(ngModel)]="formCierre.motivo"></label>
+      <label><span>Desde</span><input type="datetime-local" [(ngModel)]="formCierre.fecha_inicio"></label>
+      <label><span>Hasta</span><input type="datetime-local" [(ngModel)]="formCierre.fecha_fin"></label>
+    </div>
+    <div class="button-row" *ngIf="esAdmin"><button type="button" class="button" (click)="crearCierre()">Registrar cierre</button></div>
+    <table class="data-table" *ngIf="cierres.length; else sinCierres">
+      <thead><tr><th>Zona</th><th>Desde</th><th>Hasta</th><th>Motivo</th><th>Activo</th><th></th></tr></thead>
+      <tbody>
+        <tr *ngFor="let cierre of cierres">
+          <td>{{ cierre.zona }}</td><td>{{ cierre.fecha_inicio | date:'dd/MM HH:mm' }}</td><td>{{ cierre.fecha_fin | date:'dd/MM HH:mm' }}</td>
+          <td>{{ cierre.motivo }}</td><td>{{ cierre.activo ? 'sí' : 'no' }}</td>
+          <td class="button-row">
+            <button type="button" class="button tiny secondary" *ngIf="esAdmin" (click)="borrarCierre(cierre.id)">Eliminar</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <ng-template #sinCierres><p class="muted">Sin cierres programados.</p></ng-template>
+
+    <h3>Cargos por uso y penalizaciones</h3>
+    <table class="data-table" *ngIf="cargosReserva.length; else sinCargos">
+      <thead><tr><th>Inmueble</th><th>Concepto</th><th>Tipo</th><th>Monto</th><th>Estado</th></tr></thead>
+      <tbody>
+        <tr *ngFor="let cargo of cargosReserva">
+          <td>{{ cargo.inmueble }}</td><td>{{ cargo.concepto }}</td><td>{{ cargo.tipo }}</td><td>{{ cargo.monto }}</td><td>{{ cargo.estado }}</td>
+        </tr>
+      </tbody>
+    </table>
+    <ng-template #sinCargos><p class="muted">Sin cargos por reservas.</p></ng-template>
+  </section>
+
+  <!-- ============================= OPERACIÓN ============================= -->
+  <section class="panel" *ngIf="seccion === 'operacion'">
+    <div class="section-heading">
+      <div><p class="eyebrow">Producción</p><h2>Despliegue, respaldos y salud</h2></div>
+      <div class="button-row">
+        <button type="button" class="button" (click)="crearRespaldo()">Generar respaldo</button>
+        <button type="button" class="button secondary" (click)="descargarBackup()">Descargar base</button>
+        <button type="button" class="button secondary" (click)="descargarAdjuntos()">Paquete de adjuntos</button>
+      </div>
+    </div>
+
+    <section class="subpanel" *ngIf="esSuperAdmin" aria-labelledby="onboarding-title">
+      <p class="eyebrow">Asistente de inicio</p><h3 id="onboarding-title">Configurar un conjunto paso a paso</h3>
+      <p class="muted">Crea el conjunto y sus zonas comunes. Después, importa residentes e inmuebles con una plantilla, asigna el equipo y configura cartera, reservas y pagos. No sobrescribe datos existentes.</p>
+      <div class="form-grid">
+        <label><span>Nombre del conjunto</span><input [(ngModel)]="altaConjunto.nombre" autocomplete="organization" required></label>
+        <label><span>NIT</span><input [(ngModel)]="altaConjunto.nit" required></label>
+        <label class="wide"><span>Dirección</span><input [(ngModel)]="altaConjunto.direccion" autocomplete="street-address" required></label>
+        <label class="wide"><span>Zonas comunes iniciales (una por línea o separadas por coma)</span><textarea rows="3" [(ngModel)]="altaConjunto.zonas"></textarea></label>
+      </div>
+      <div class="button-row"><button type="button" class="button" (click)="crearConjuntoGuiado()" [disabled]="cargando['asistente']">{{ cargando['asistente'] ? 'Configurando…' : 'Crear conjunto y zonas' }}</button></div>
+      <div class="note" *ngIf="altaConjuntoCreado">
+        <b>Conjunto #{{ altaConjuntoCreado.id }} listo.</b> Siguientes pasos: <a routerLink="/admin/gestion">crear unidades y asignar propietarios</a>; descargar <button type="button" class="link" (click)="descargarPlantillaResidentes()">plantilla de residentes</button> e importarla desde IRIS Plus; asignar administración/portería; configurar cuotas y pasarela; probar notificaciones y respaldo.
+      </div>
+    </section>
+
+    <div class="tiles" *ngIf="estadoSistema">
+      <article class="tile"><span>Versión</span><strong>{{ estadoSistema.version }}</strong><small>{{ estadoSistema.entorno }}</small></article>
+      <article class="tile"><span>Motor de base de datos</span><strong>{{ estadoSistema.motor_bd }}</strong><small>{{ estadoSistema.tablas }} tablas</small></article>
+      <article class="tile"><span>Tablas 3.0</span><strong>{{ estadoSistema.tablas_v3 }}</strong><small>{{ estadoSistema.migraciones_faltantes?.length ? 'migraciones pendientes' : 'esquema al día' }}</small></article>
+      <article class="tile"><span>Adjuntos</span><strong>{{ estadoSistema.adjuntos }}</strong></article>
+    </div>
+
+    <h3>Lista de verificación del despliegue</h3>
+    <table class="data-table" *ngIf="checklist">
+      <thead><tr><th>Comprobación</th><th>Estado</th><th>Detalle</th><th>Sugerencia</th></tr></thead>
+      <tbody>
+        <tr *ngFor="let comprobacion of checklist.comprobaciones">
+          <td>{{ comprobacion.clave }}</td>
+          <td><span class="badge" [class.bad]="!comprobacion.ok">{{ comprobacion.ok ? 'cumple' : 'pendiente' }}</span></td>
+          <td>{{ comprobacion.detalle }}</td>
+          <td>{{ comprobacion.sugerencia }}</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="muted" *ngIf="checklist">Cumplidas {{ checklist.cumplidas }} de {{ checklist.total }}.</p>
+
+    <h3>Respaldos y prueba de restauración</h3>
+    <table class="data-table" *ngIf="respaldos.length; else sinRespaldos">
+      <thead><tr><th>#</th><th>Archivo</th><th>Tamaño</th><th>Creado</th><th>Prueba</th><th>Filas</th><th></th></tr></thead>
+      <tbody>
+        <tr *ngFor="let respaldo of respaldos">
+          <td>{{ respaldo.id }}</td><td>{{ respaldo.archivo }}</td>
+          <td>{{ respaldo.tamano_bytes }} B</td><td>{{ respaldo.creado_en | date:'dd/MM/yyyy HH:mm' }}</td>
+          <td><span class="badge" [class.bad]="respaldo.estado_prueba === 'fallido'">{{ respaldo.estado_prueba }}</span></td>
+          <td>{{ respaldo.filas_verificadas }}</td>
+          <td class="button-row">
+            <button type="button" class="button tiny" (click)="verificarRespaldo(respaldo.id)">Probar restauración</button>
+            <button type="button" class="button tiny secondary" (click)="descargarRespaldo(respaldo.id, respaldo.archivo)">Descargar</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <ng-template #sinRespaldos><p class="muted">Todavía no hay respaldos generados.</p></ng-template>
+    <p class="note" *ngIf="respaldos.length && respaldos[0].detalle_prueba">{{ respaldos[0].detalle_prueba }}</p>
+  </section>
+</main>

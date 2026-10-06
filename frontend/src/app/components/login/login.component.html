@@ -1,46 +1,91 @@
-<div class="login-container">
-  <mat-card class="login-card">
-    <mat-card-header>
-      <mat-card-title>🏢 Conjuntos Residenciales</mat-card-title>
-      <mat-card-subtitle>Inicia sesión en tu cuenta</mat-card-subtitle>
-    </mat-card-header>
+<div class="auth">
+  <section class="auth__brand">
+    <div class="auth__id">
+      <img src="assets/iris-mark.svg" alt="" class="auth__mark" />
+      <div>
+        <h1 class="auth__name">IRIS</h1>
+        <p class="auth__tag">Gestión residencial</p>
+      </div>
+    </div>
 
-    <mat-card-content>
-      <form [formGroup]="form" (ngSubmit)="login()">
+    <ul class="acronym" aria-label="Significado de IRIS">
+      <li>
+        <span class="acronym__l" aria-hidden="true">I</span>
+        <span><span class="acronym__w">Inmuebles</span><span class="acronym__d">Torres y apartamentos del conjunto en un solo lugar.</span></span>
+      </li>
+      <li>
+        <span class="acronym__l" aria-hidden="true">R</span>
+        <span><span class="acronym__w">Reservas</span><span class="acronym__d">Salón social, piscina y gimnasio sin cruces de horario.</span></span>
+      </li>
+      <li>
+        <span class="acronym__l" aria-hidden="true">I</span>
+        <span><span class="acronym__w">Incidencias</span><span class="acronym__d">Peticiones, quejas, reclamos y sugerencias (PQRS).</span></span>
+      </li>
+      <li>
+        <span class="acronym__l" aria-hidden="true">S</span>
+        <span><span class="acronym__w">Servicios</span><span class="acronym__d">Respuestas claras y seguimiento de la administración.</span></span>
+      </li>
+    </ul>
+  </section>
 
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Correo electrónico</mat-label>
-          <input matInput formControlName="email" type="email" placeholder="tu@email.com">
-          <mat-error *ngIf="form.get('email')?.hasError('required')">
+  <section class="auth__form">
+    <div class="auth__card">
+      <h2>{{ desafio2fa ? 'Verificación en dos pasos' : 'Inicia sesión' }}</h2>
+      <p class="auth__hint" *ngIf="!desafio2fa">Accede a tus reservas y PQRS.</p>
+      <p class="auth__hint" *ngIf="desafio2fa">Tu cuenta tiene segundo factor activo: ingresa el código de tu aplicación de autenticación o uno de recuperación.</p>
+
+      <form *ngIf="desafio2fa" (ngSubmit)="verificarSegundoFactor()">
+        <div class="field">
+          <label for="codigo2fa">Código de verificación</label>
+          <input id="codigo2fa" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="123456"
+                 [value]="codigo2fa" (input)="codigo2fa = $any($event.target).value" maxlength="32">
+          <div class="error-text" *ngIf="error2fa" role="alert">{{ error2fa }}</div>
+        </div>
+        <button class="auth__submit" type="submit" [disabled]="cargando">
+          {{ cargando ? 'Verificando...' : 'Verificar e ingresar' }}
+        </button>
+      </form>
+      <button class="auth__forgot" type="button" *ngIf="desafio2fa" (click)="cancelarSegundoFactor()">Volver al inicio de sesión</button>
+
+      <form [formGroup]="form" (ngSubmit)="login()" *ngIf="!desafio2fa">
+
+        <div class="field">
+          <label for="email">Correo electrónico</label>
+          <input id="email" formControlName="email" type="email" placeholder="tu@email.com" autocomplete="email">
+          <div class="error-text" *ngIf="form.get('email')?.hasError('required') && form.get('email')?.touched">
             El correo es obligatorio
-          </mat-error>
-          <mat-error *ngIf="form.get('email')?.hasError('email')">
+          </div>
+          <div class="error-text" *ngIf="form.get('email')?.hasError('email') && form.get('email')?.touched">
             Ingresa un correo válido
-          </mat-error>
-        </mat-form-field>
+          </div>
+        </div>
 
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Contraseña</mat-label>
-          <input matInput formControlName="password" type="password">
-          <mat-error *ngIf="form.get('password')?.hasError('required')">
+        <div class="field">
+          <label for="password">Contraseña</label>
+          <div class="password-input">
+            <input id="password" formControlName="password" [type]="mostrarContrasena ? 'text' : 'password'" autocomplete="current-password">
+            <button type="button" class="password-toggle" (click)="mostrarContrasena = !mostrarContrasena"
+                    [attr.aria-label]="mostrarContrasena ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+                    [attr.aria-pressed]="mostrarContrasena" [title]="mostrarContrasena ? 'Ocultar contraseña' : 'Mostrar contraseña'">
+              <mat-icon aria-hidden="true">{{ mostrarContrasena ? 'visibility_off' : 'visibility' }}</mat-icon>
+            </button>
+          </div>
+          <div class="error-text" *ngIf="form.get('password')?.hasError('required') && form.get('password')?.touched">
             La contraseña es obligatoria
-          </mat-error>
-        </mat-form-field>
+          </div>
+        </div>
 
-        <button
-          mat-raised-button
-          color="primary"
-          class="full-width"
-          type="submit"
-          [disabled]="form.invalid || cargando">
+        <button class="auth__submit" type="submit" [disabled]="form.invalid || cargando">
           {{ cargando ? 'Ingresando...' : 'Ingresar' }}
         </button>
 
       </form>
-    </mat-card-content>
 
-    <mat-card-actions>
-      <p>¿No tienes cuenta? <a routerLink="/registro">Regístrate aquí</a></p>
-    </mat-card-actions>
-  </mat-card>
+      <button class="auth__forgot" type="button" *ngIf="!desafio2fa" (click)="recuperarContrasena()" [disabled]="recuperando">
+        {{ recuperando ? 'Solicitando…' : '¿Olvidaste tu contraseña? Recupérala aquí' }}
+      </button>
+      <p class="auth__hint" *ngIf="mensajeRecuperacion" role="status">{{ mensajeRecuperacion }}</p>
+      <p class="auth__alt" *ngIf="!desafio2fa">¿No tienes cuenta? <a routerLink="/registro">Regístrate aquí</a></p>
+    </div>
+  </section>
 </div>

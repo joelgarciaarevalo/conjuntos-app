@@ -36,6 +36,14 @@ import { AuthService } from '../../../services/auth.service';
 })
 export class PqrsComponent implements OnInit {
   pqrsList: any[] = [];
+  filtro = 'todas';
+
+  private tiposInfo: any = {
+    peticion:   { etiqueta: 'Petición',   icono: 'edit_note' },
+    queja:      { etiqueta: 'Queja',      icono: 'sentiment_dissatisfied' },
+    reclamo:    { etiqueta: 'Reclamo',    icono: 'report_problem' },
+    sugerencia: { etiqueta: 'Sugerencia', icono: 'lightbulb' }
+  };
   formularios: { [key: number]: FormGroup } = {};
 
   constructor(
@@ -83,6 +91,28 @@ export class PqrsComponent implements OnInit {
         );
       }
     });
+  }
+
+  get pqrsFiltradas(): any[] {
+    return this.filtro === 'todas'
+      ? this.pqrsList
+      : this.pqrsList.filter(p => p.estado === this.filtro);
+  }
+
+  conteo(estado: string): number {
+    return this.pqrsList.filter(p => p.estado === estado).length;
+  }
+
+  setFiltro(estado: string): void {
+    this.filtro = estado;
+  }
+
+  etiquetaTipo(tipo: string): string { return this.tiposInfo[tipo]?.etiqueta || tipo; }
+  icono(tipo: string): string { return this.tiposInfo[tipo]?.icono || 'forum'; }
+
+  etiquetaEstado(estado: string): string {
+    const e = (estado || '').replace('_', ' ');
+    return e.charAt(0).toUpperCase() + e.slice(1);
   }
 
   getColorEstado(estado: string): string {

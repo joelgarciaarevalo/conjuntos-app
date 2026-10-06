@@ -1,0 +1,4 @@
+Archivo original recibido: conjuntos-app-iris-v2.zip
+SHA-256 verificado: 95beca9f7b2f022829b2c85a5ed52dcad6339db9619a99d3d223a656ff56344b
+Estado: el original permanece intacto. Todos los cambios de IRIS 3.1 y del lanzador npm están solo en esta copia separada.
+Versión: IRIS 3.1 — inicio local sin Docker con npm install y npm start.
