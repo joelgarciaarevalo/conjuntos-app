@@ -57,4 +57,77 @@ export class ApiService {
   responderPQRS(id: number, datos: any): Observable<any> {
     return this.http.patch(`${this.apiUrl}/pqrs/${id}/responder`, datos, { headers: this.getHeaders() });
   }
+
+  // PORTERÍA: visitantes
+  registrarVisitante(datos: any) {
+    return this.http.post(
+      `${this.apiUrl}/porteria/visitantes`,
+      datos,
+      { headers: this.getHeaders() }
+    );
+  }
+
+  listarVisitantes() {
+    return this.http.get(
+      `${this.apiUrl}/porteria/visitantes`,
+      { headers: this.getHeaders() }
+    );
+  }
+
+  // PORTERÍA: residentes
+  buscarResidentes(nombreOApartamento: string) {
+    const q = encodeURIComponent(nombreOApartamento);
+    return this.http.get(
+      `${this.apiUrl}/porteria/residentes?q=${q}`,
+      { headers: this.getHeaders() }
+    );
+  }
+
+  // PORTERÍA: validar acceso
+  validarAcceso(datos: {
+    visitante_id: number;
+    inmueble_id?: number;
+  }) {
+    return this.http.post(
+      `${this.apiUrl}/porteria/validar-acceso`,
+      datos,
+      { headers: this.getHeaders() }
+    );
+  }
+
+  // PORTERÍA: novedades
+  registrarNovedad(datos: {
+    titulo: string;
+    descripcion: string;
+  }) {
+    return this.http.post(
+      `${this.apiUrl}/porteria/novedades`,
+      datos,
+      { headers: this.getHeaders() }
+    );
+  }
+
+  consultarNovedades() {
+    return this.http.get(
+      `${this.apiUrl}/porteria/novedades`,
+      { headers: this.getHeaders() }
+    );
+  }
+
+  // PORTERÍA: historial de entradas y salidas
+  consultarMovimientos() {
+    return this.http.get(
+      `${this.apiUrl}/porteria/movimientos`,
+      { headers: this.getHeaders() }
+    );
+  }
+
+  registrarSalida(movimientoId: number) {
+    return this.http.post(
+      `${this.apiUrl}/porteria/registrar-salida`,
+      { movimiento_id: movimientoId },
+      { headers: this.getHeaders() }
+    );
+  }
+
 }
